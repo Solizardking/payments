@@ -1,0 +1,11 @@
+.env
+.env.local
+node_modules/
+storefront/node_modules/
+truand/node_modules/
+storefront/.env.local
+truand/.env.local
+generated/sessions/
+generated/*.provisioned.json
+*.log
+.DS_Store
