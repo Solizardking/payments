@@ -193,6 +193,98 @@
         <div class="journey" id="judge-mode"></div>
       </section>
 
+      <section class="panel x402-store">
+        <div class="section-head">
+          <div>
+            <p class="section-label">x402.wtf Real Store</p>
+            <h2>Registered paid merchant on <code>https://x402.wtf/payments</code>.</h2>
+          </div>
+          <div class="status-pill" id="x402-store-status">checking…</div>
+        </div>
+        <p class="frontier-copy">
+          The OpenClawd merchant is registered on <code>x402.wtf/agents/registry</code> and accepts real x402 challenges through
+          <code>https://x402.wtf/payments</code>. Each paid product returns an HTTP&nbsp;402 challenge that the buyer signs with a Solana wallet.
+          Once the operator wallet replays the request with <code>payment-signature</code>, the receipt is verified and the fulfillment lane unlocks.
+        </p>
+        <div class="terminal" id="x402-store-info">Loading x402.wtf connection…</div>
+        <div class="grid x402-grid">
+          <article class="panel x402-subpanel">
+            <p class="section-label">x402.wtf Agent Registry</p>
+            <pre class="artifact-view" id="x402-registry-output">Registry status will appear here.</pre>
+            <div class="hero-actions">
+              <button class="button button-primary" id="x402-registry-register">Register Merchant</button>
+            </div>
+          </article>
+          <article class="panel x402-subpanel">
+            <p class="section-label">x402 Agent Chat</p>
+            <label class="field">
+              <span>Agent</span>
+              <select id="x402-chat-agent">
+                <option value="clawd">clawd</option>
+                <option value="eliza">eliza</option>
+                <option value="dexter">dexter</option>
+                <option value="hermes">hermes</option>
+                <option value="ralph">ralph</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Message</span>
+              <textarea id="x402-chat-message">Register the OpenClawd store on x402.wtf and quote me for an OODA signal pack.</textarea>
+            </label>
+            <div class="hero-actions">
+              <button class="button button-secondary" id="x402-chat-run">Send x402 Chat</button>
+            </div>
+            <pre class="artifact-view" id="x402-chat-output">x402 chat reply will appear here.</pre>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel x402-checkout">
+        <div class="section-head">
+          <div>
+            <p class="section-label">x402.wtf Live Checkout</p>
+            <h2>Create a real paid x402 challenge for any product.</h2>
+          </div>
+          <div class="status-pill">Real Store</div>
+        </div>
+        <div class="checkout-grid">
+          <article class="panel checkout-form-panel">
+            <div class="field-grid">
+              <label class="field">
+                <span>Product</span>
+                <select id="x402-product"></select>
+              </label>
+              <label class="field">
+                <span>Buyer Wallet (optional)</span>
+                <input id="x402-buyer-wallet" type="text" value="GyZGtA7hEThVHZpj52XC9jX15a8ABtDHTwELjFRWEts4" />
+              </label>
+              <label class="field">
+                <span>Buyer Name</span>
+                <input id="x402-buyer-name" type="text" value="Hackathon Judge" />
+              </label>
+              <label class="field">
+                <span>Buyer Email</span>
+                <input id="x402-buyer-email" type="email" value="judge@x402.wtf" />
+              </label>
+            </div>
+            <div class="hero-actions">
+              <button class="button button-primary" id="x402-create">Create x402 Challenge</button>
+              <button class="button button-secondary" id="x402-verify">Verify payment-signature</button>
+            </div>
+            <label class="field">
+              <span>payment-signature</span>
+              <input id="x402-signature" type="text" placeholder="Paste the x402 payment signature from the buyer wallet" />
+            </label>
+          </article>
+          <article class="panel checkout-state-panel">
+            <p class="section-label">x402 Session</p>
+            <div class="terminal" id="x402-session">No x402 session created yet.</div>
+            <p class="section-label">Fulfillment Receipt</p>
+            <pre class="artifact-view" id="x402-fulfillment">Verify the payment-signature to unlock the receipt.</pre>
+          </article>
+        </div>
+      </section>
+
       <section class="panel live-agents">
         <div class="section-head">
           <div>

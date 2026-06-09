@@ -6,7 +6,9 @@
     "$.wallet",
     "$.signature",
     "$.mandate",
-    "$.authorization"
+    "$.authorization",
+    "$.x402.challenge",
+    "$.x402.paymentSignature"
   ],
   "responseJSONPaths": [
     "$.payment",
@@ -15,7 +17,9 @@
     "$.wallet",
     "$.signature",
     "$.mandate",
-    "$.authorization"
+    "$.authorization",
+    "$.x402.challenge",
+    "$.x402.paymentSignature"
   ],
   "variables": [
     "request.content",
@@ -24,6 +28,9 @@
     "private.agent.assertion",
     "private.payment.signature",
     "private.payment.header",
-    "private.agent.jwt"
+    "private.agent.jwt",
+    "private.x402.payments",
+    "private.x402.registry",
+    "private.x402.publicKey"
   ]
 }

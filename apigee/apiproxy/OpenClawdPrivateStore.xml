@@ -1,21 +1,27 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <APIProxy name="openclawd-private-store">
-  <Description>Private and confidential Apigee edge for the OpenClawd autonomous merchant store.</Description>
+  <Description>Private and confidential Apigee edge for the OpenClawd autonomous merchant store. Connects the merchant fleet to x402.wtf/payments as a real paid x402 store.</Description>
   <DisplayName>OpenClawd Private Store</DisplayName>
   <Policies>
     <Policy>AM-PrivateDefaults</Policy>
+    <Policy>AM-SetX402Headers</Policy>
     <Policy>EV-VerifyApiKey</Policy>
     <Policy>JWT-ExtractAgentAssertion</Policy>
     <Policy>SA-StoreBurstControl</Policy>
     <Policy>Q-StorePerAppMinute</Policy>
     <Policy>AM-SanitizeResponse</Policy>
     <Policy>RF-Unauthorized</Policy>
+    <Policy>RF-X402Challenge</Policy>
   </Policies>
   <ProxyEndpoints>
     <ProxyEndpoint>default</ProxyEndpoint>
   </ProxyEndpoints>
   <TargetEndpoints>
     <TargetEndpoint>default</TargetEndpoint>
+    <TargetEndpoint>x402-payments</TargetEndpoint>
+    <TargetEndpoint>x402-registry</TargetEndpoint>
+    <TargetEndpoint>x402-agent-chat</TargetEndpoint>
+    <TargetEndpoint>x402-agents</TargetEndpoint>
   </TargetEndpoints>
   <BasePaths>/openclawd/private-store</BasePaths>
 </APIProxy>

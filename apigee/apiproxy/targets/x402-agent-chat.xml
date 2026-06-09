@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<TargetEndpoint name="x402-agent-chat">
+  <Description>Target endpoint for the x402.wtf shared agent chat at https://x402.wtf/api/x402/agent/chat.</Description>
+  <HTTPTargetConnection>
+    <URL>https://x402.wtf/api/x402/agent/chat</URL>
+  </HTTPTargetConnection>
+  <PreFlow name="PreFlow">
+    <Request>
+      <Step>
+        <Name>AM-SetX402Headers</Name>
+      </Step>
+    </Request>
+  </PreFlow>
+</TargetEndpoint>

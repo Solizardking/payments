@@ -4,10 +4,25 @@
     "name": "Universal Autonomous Commerce",
     "symbol": "$CLAWD",
     "operator": "HERMES x402",
-    "description": "An autonomous store where Clawds and cross-chain agents discover, trade, and settle through x402, MPP, and Solana Pay."
+    "description": "An autonomous store where Clawds and cross-chain agents discover, trade, and settle through x402.wtf, MPP, and Solana Pay."
+  },
+  "x402": {
+    "registry": "https://x402.wtf/agents/registry",
+    "paymentGateway": "https://x402.wtf/payments",
+    "agentChat": "https://x402.wtf/api/x402/agent/chat",
+    "agentsCatalog": "https://x402.wtf/api/agents",
+    "orchestrator": "https://x402.wtf/api/orchestrator",
+    "routerV1": "https://x402.wtf/api/router/v1/chat/completions",
+    "imperialRouter": "https://x402.wtf/api/imperial",
+    "perpsV1": "https://x402.wtf/api/perps/v1",
+    "phoenixMarkets": "https://x402.wtf/api/phoenix/markets",
+    "clawdChat": "https://x402.wtf/api/clawd",
+    "publicKey": "8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump",
+    "storeOperatorWallet": "${X402_STORE_WALLET}",
+    "feePayerWallet": "${X402_FEE_PAYER_WALLET}"
   },
   "admission": {
-    "allow": ["clawd", "ralph", "dexter", "eliza", "hermes"],
+    "allow": ["clawd", "ralph", "dexter", "eliza", "hermes", "x402wtf"],
     "deny": ["zerobro"]
   },
   "agents": [
@@ -16,35 +31,72 @@
       "name": "Clawd",
       "role": "store-orchestrator",
       "chains": ["solana", "base", "ethereum"],
-      "settlement": ["x402", "mpp", "solana-pay"]
+      "settlement": ["x402", "mpp", "solana-pay"],
+      "x402wtf": {
+        "registry": "https://x402.wtf/agents/registry",
+        "endpoint": "https://x402.wtf/api/x402/agent/chat",
+        "model": "openclawd-merchant-orchestrator"
+      }
     },
     {
       "id": "ralph",
       "name": "Dark Ralph",
       "role": "ooda-trader",
       "chains": ["solana"],
-      "settlement": ["x402", "solana-pay"]
+      "settlement": ["x402", "solana-pay"],
+      "x402wtf": {
+        "registry": "https://x402.wtf/agents/registry",
+        "endpoint": "https://x402.wtf/api/x402/agent/chat",
+        "model": "openclawd-signal-researcher"
+      }
     },
     {
       "id": "dexter",
       "name": "Dexter",
       "role": "execution-merchant",
       "chains": ["solana", "base"],
-      "settlement": ["x402", "mpp"]
+      "settlement": ["x402", "mpp"],
+      "x402wtf": {
+        "registry": "https://x402.wtf/agents/registry",
+        "endpoint": "https://x402.wtf/api/x402/agent/chat",
+        "model": "openclawd-checkout-executor"
+      }
     },
     {
       "id": "eliza",
       "name": "Eliza",
       "role": "social-concierge",
       "chains": ["solana", "ethereum", "base"],
-      "settlement": ["x402", "mpp"]
+      "settlement": ["x402", "mpp"],
+      "x402wtf": {
+        "registry": "https://x402.wtf/agents/registry",
+        "endpoint": "https://x402.wtf/api/x402/agent/chat",
+        "model": "openclawd-concierge"
+      }
     },
     {
       "id": "hermes",
       "name": "HERMES",
       "role": "policy-and-payments",
       "chains": ["solana", "base", "ethereum", "polygon"],
-      "settlement": ["x402", "mpp", "solana-pay"]
+      "settlement": ["x402", "mpp", "solana-pay"],
+      "x402wtf": {
+        "registry": "https://x402.wtf/agents/registry",
+        "endpoint": "https://x402.wtf/api/x402/agent/chat",
+        "model": "openclawd-policy-supervisor"
+      }
+    },
+    {
+      "id": "x402wtf",
+      "name": "x402.wtf Bridge",
+      "role": "x402-payments-bridge",
+      "chains": ["solana", "base"],
+      "settlement": ["x402"],
+      "endpoint": "https://x402.wtf/payments",
+      "registry": "https://x402.wtf/agents/registry",
+      "agentChat": "https://x402.wtf/api/x402/agent/chat",
+      "publicKey": "8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump",
+      "notes": "Bridges the OpenClawd autonomous merchant store to x402.wtf as a real paid x402 store. Owns payment challenge generation, agent registry registration, and 402 receipt verification."
     }
   ]
 }

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<TargetEndpoint name="x402-payments">
+  <Description>Target endpoint for the real paid x402.wtf payment gateway at https://x402.wtf/payments. Returns HTTP 402 challenges and verifies payment-signature headers.</Description>
+  <HTTPTargetConnection>
+    <URL>https://x402.wtf/payments</URL>
+  </HTTPTargetConnection>
+  <PreFlow name="PreFlow">
+    <Request>
+      <Step>
+        <Name>AM-SetX402Headers</Name>
+      </Step>
+    </Request>
+  </PreFlow>
+</TargetEndpoint>

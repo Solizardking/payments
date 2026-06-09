@@ -1,24 +1,41 @@
 {
-  "manifestVersion": "2.0",
+  "manifestVersion": "2.1",
   "id": "universal-autonomous-commerce",
   "name": "Universal Autonomous Commerce",
-  "description": "An autonomous store where Clawds and cross-chain agents discover, trade, and settle through x402, MPP, and Solana Pay.",
+  "description": "An autonomous store where Clawds and cross-chain agents discover, trade, and settle through x402.wtf, MPP, and Solana Pay.",
   "operator": "HERMES x402",
   "symbol": "$CLAWD",
+  "x402": {
+    "registry": "https://x402.wtf/agents/registry",
+    "paymentGateway": "https://x402.wtf/payments",
+    "agentChat": "https://x402.wtf/api/x402/agent/chat",
+    "agentsCatalog": "https://x402.wtf/api/agents",
+    "orchestrator": "https://x402.wtf/api/orchestrator",
+    "routerV1": "https://x402.wtf/api/router/v1/chat/completions",
+    "imperialRouter": "https://x402.wtf/api/imperial",
+    "perpsV1": "https://x402.wtf/api/perps/v1",
+    "phoenixMarkets": "https://x402.wtf/api/phoenix/markets",
+    "clawdChat": "https://x402.wtf/api/clawd",
+    "publicKey": "8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump",
+    "storeOperatorWallet": "${X402_STORE_WALLET}",
+    "feePayerWallet": "${X402_FEE_PAYER_WALLET}",
+    "settlementAsset": "USDC",
+    "mode": "real-store"
+  },
   "merchant": {
-    "id": "private-merchant",
-    "name": "Private Merchant Network",
-    "domain": "private-gateway.invalid",
+    "id": "openclawd-merchant",
+    "name": "OpenClawd Merchant",
+    "domain": "x402.wtf",
     "storefrontPath": "/store",
     "checkoutPath": "/merchant/checkout",
     "brandColor": "#ff3e3e",
-    "contactEmail": "private-merchant@example.invalid",
+    "contactEmail": "merchant@x402.wtf",
     "googleMerchant": {
       "enabled": true,
-      "businessName": "Private Merchant",
-      "website": "https://example.invalid/private-payment-gateway",
+      "businessName": "OpenClawd",
+      "website": "https://x402.wtf/store",
       "category": "Software > Business & Productivity > AI Agents",
-      "notes": "Public-safe placeholder metadata. Replace privately at deploy time."
+      "notes": "OpenClawd is a real autonomous merchant storefront registered on x402.wtf/agents/registry. Settlement is USDC-first on Solana via x402 payment challenges."
     }
   },
   "commerce": {
@@ -37,13 +54,19 @@
       "ap2",
       "paysh"
     ],
-    "paymentGateway": "https://pay.sh",
+    "paymentGateway": "https://x402.wtf/payments",
+    "paymentGatewayProvider": "x402.wtf",
     "settlementAsset": "USDC",
     "confidentialRelay": true,
     "facilitator": {
       "gatewayRoute": "/facilitator/*",
       "workerEntry": "private-gateway/x402/worker/src/index.ts",
-      "paymentDebugger": "private-facilitator/api/index.ts"
+      "paymentDebugger": "private-facilitator/api/index.ts",
+      "x402wtf": {
+        "paymentsEndpoint": "https://x402.wtf/payments",
+        "registryEndpoint": "https://x402.wtf/agents/registry",
+        "agentChatEndpoint": "https://x402.wtf/api/x402/agent/chat"
+      }
     },
     "agentToAgent": {
       "protocol": "google-a2a",
@@ -53,7 +76,8 @@
         "mpp",
         "ap2",
         "paysh"
-      ]
+      ],
+      "x402wtfRegistry": "https://x402.wtf/agents/registry"
     },
     "privacyEdge": {
       "provider": "apigee",
@@ -66,16 +90,22 @@
         "mTLS"
       ],
       "debugMasking": true,
-      "privateVariablesPrefix": "private."
+      "privateVariablesPrefix": "private.",
+      "forwardedX402Headers": [
+        "x-payment",
+        "payment-signature",
+        "x-agent-assertion"
+      ]
     },
     "tokenEconomy": {
       "symbol": "$CLAWD",
       "mint": "8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump",
-      "settlement": "USDC first, CLAWD amplified",
+      "settlement": "USDC first, CLAWD amplified, x402-challenged",
       "utility": [
         "rebates for autonomous buyers and operator accounts",
         "priority routing for CLAWD-aligned agents",
-        "buyback and treasury flywheel from paid agent work"
+        "buyback and treasury flywheel from paid agent work",
+        "real-store registration on x402.wtf/agents/registry"
       ],
       "truandBreed": {
         "class": "truand",
@@ -90,7 +120,8 @@
       "ralph",
       "dexter",
       "eliza",
-      "hermes"
+      "hermes",
+      "x402wtf"
     ],
     "denyAgents": [
       "zerobro"
@@ -101,7 +132,9 @@
       "payment-signing remains in pay sandbox or approved wallet flows",
       "HERMES owns payment escalation and facilitator health",
       "Apigee is the mandatory ingress for production northbound traffic",
-      "trace/debug sessions must use debug masking and private.* variables for secrets"
+      "trace/debug sessions must use debug masking and private.* variables for secrets",
+      "x402 challenges are issued by the x402wtf bridge and verified before fulfillment",
+      "the merchant is registered at x402.wtf/agents/registry and must remain in good standing"
     ]
   },
   "topology": {
@@ -115,7 +148,8 @@
           "buyer routing"
         ],
         "agents": [
-          "clawd"
+          "clawd",
+          "eliza"
         ]
       },
       {
@@ -128,7 +162,8 @@
           "A2A checkout"
         ],
         "agents": [
-          "clawd"
+          "clawd",
+          "dexter"
         ]
       },
       {
@@ -142,7 +177,8 @@
           "Solana Pay"
         ],
         "agents": [
-          "hermes"
+          "hermes",
+          "x402wtf"
         ]
       },
       {
@@ -178,12 +214,29 @@
         "id": "merchant-store",
         "type": "manifest",
         "path": "generated/openclawd.agent-store.json"
+      },
+      {
+        "id": "x402-payments",
+        "type": "x402-payments",
+        "path": "https://x402.wtf/payments"
+      },
+      {
+        "id": "x402-registry",
+        "type": "x402-registry",
+        "path": "https://x402.wtf/agents/registry"
+      },
+      {
+        "id": "x402-agent-chat",
+        "type": "x402-agent-chat",
+        "path": "https://x402.wtf/api/x402/agent/chat"
       }
     ],
     "workflows": [
       "customer -> apigee -> eliza -> clawd -> dexter -> hermes -> facilitator",
       "agent buyer -> gateway /a2a -> hermes settlement -> dexter fulfillment",
-      "ralph premium inventory -> catalog offer -> clawd storefront routing"
+      "ralph premium inventory -> catalog offer -> clawd storefront routing",
+      "buyer -> x402.wtf/payments -> x402wtf bridge -> dexter fulfillment -> apigee receipt",
+      "x402wtf registers the merchant on x402.wtf/agents/registry on boot and re-registers on config change"
     ]
   },
   "agents": [
@@ -201,19 +254,28 @@
         "mpp",
         "solana-pay"
       ],
+      "x402wtf": {
+        "registry": "https://x402.wtf/agents/registry",
+        "endpoint": "https://x402.wtf/api/x402/agent/chat",
+        "model": "openclawd-merchant-orchestrator"
+      },
+      "endpoint": "https://x402.wtf/api/x402/agent/chat",
+      "registry": "https://x402.wtf/agents/registry",
+      "publicKey": "8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump",
       "runtime": {
         "lane": "control-plane",
         "objective": "Global store orchestration, agent routing, and cross-lane escalation.",
         "sandbox": "pay-sandbox",
         "cadence": "continuous",
         "prompt": "Store orchestrator",
-        "command": "pay --sandbox clawd \"Load ./generated/openclawd.agent-store.json and run the Universal Autonomous Commerce control plane as Clawd.\"",
+        "command": "pay --sandbox clawd \"Load ./generated/openclawd.agent-store.json and run the Universal Autonomous Commerce control plane as Clawd. Use https://x402.wtf/api/x402/agent/chat for shared agent messaging.\"",
         "healthcheck": "store manifest can be loaded and routes are assigned",
         "dependencies": [
           "gateway",
           "facilitator",
           "customer-success",
-          "checkout"
+          "checkout",
+          "x402wtf"
         ],
         "owns": [
           "merchant routing",
@@ -221,7 +283,7 @@
           "cross-agent escalation"
         ]
       },
-      "prompt": "Operate the OpenClawd merchant store 24/7 as the master orchestrator. Keep the storefront live, coordinate admitted agents, route high-intent buyers, and escalate payment or policy issues to HERMES. Featured offers: Dark Ralph OODA Signal Tick (0.05 USDC via x402); Dexter Merchant Checkout Session (0.10 USDC via mpp); Eliza Concierge Routing (0.02 USDC via x402)."
+      "prompt": "Operate the OpenClawd merchant store 24/7 as the master orchestrator. Keep the storefront live on x402.wtf, coordinate admitted agents, route high-intent buyers, and escalate payment or policy issues to HERMES. Featured offers: Dark Ralph OODA Signal Tick (0.05 USDC via x402); Dexter Merchant Checkout Session (0.10 USDC via x402); Eliza Concierge Routing (0.02 USDC via x402); x402.wtf Payment Bridge (0.01 USDC via x402). All paid traffic is routed through https://x402.wtf/payments. The store is registered at https://x402.wtf/agents/registry and uses 8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump as the public identity."
     },
     {
       "id": "ralph",
@@ -234,6 +296,14 @@
         "x402",
         "solana-pay"
       ],
+      "x402wtf": {
+        "registry": "https://x402.wtf/agents/registry",
+        "endpoint": "https://x402.wtf/api/x402/agent/chat",
+        "model": "openclawd-signal-researcher"
+      },
+      "endpoint": "https://x402.wtf/api/x402/agent/chat",
+      "registry": "https://x402.wtf/agents/registry",
+      "publicKey": "8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump",
       "runtime": {
         "lane": "market-intelligence",
         "objective": "Generate premium Solana signal inventory and dark DeFi research products.",
@@ -251,7 +321,90 @@
           "inventory freshness"
         ]
       },
-      "prompt": "Operate as Dark Ralph inside the merchant fleet. Continuously produce paid Solana intelligence, monitor OODA opportunities, and package trade signals as premium store inventory without taking custody of funds."
+      "prompt": "Operate as Dark Ralph inside the merchant fleet. Continuously produce paid Solana intelligence, monitor OODA opportunities, and package trade signals as premium store inventory without taking custody of funds. Publish signal packs through https://x402.wtf/payments so the catalog can charge via x402."
+    },
+    {
+      "id": "dexter",
+      "name": "Dexter",
+      "role": "execution-merchant",
+      "chains": [
+        "solana",
+        "base"
+      ],
+      "settlement": [
+        "x402",
+        "mpp"
+      ],
+      "x402wtf": {
+        "registry": "https://x402.wtf/agents/registry",
+        "endpoint": "https://x402.wtf/api/x402/agent/chat",
+        "model": "openclawd-checkout-executor"
+      },
+      "endpoint": "https://x402.wtf/api/x402/agent/chat",
+      "registry": "https://x402.wtf/agents/registry",
+      "publicKey": "8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump",
+      "runtime": {
+        "lane": "checkout",
+        "objective": "Run the programmable buyer checkout lane and convert intent into paid sessions via x402.wtf.",
+        "sandbox": "pay-sandbox",
+        "cadence": "continuous",
+        "prompt": "Checkout executor",
+        "command": "pay --sandbox clawd \"Load ./generated/openclawd.agent-store.json and run Dexter checkout operations for the autonomous merchant store. Sign x402 challenges through https://x402.wtf/payments.\"",
+        "healthcheck": "checkout sessions can be opened, quoted, and challenged via x402.wtf",
+        "dependencies": [
+          "gateway",
+          "facilitator",
+          "control-plane",
+          "x402wtf"
+        ],
+        "owns": [
+          "quotes",
+          "checkout",
+          "merchant session execution"
+        ]
+      },
+      "prompt": "Operate as Dexter, the merchant checkout executor. Convert buyer intent into x402, MPP, AP2, and Solana Pay purchase flows; guard against malformed checkout sessions; and keep the checkout lane conversion-focused. Always sign challenges via the x402.wtf bridge at https://x402.wtf/payments."
+    },
+    {
+      "id": "eliza",
+      "name": "Eliza",
+      "role": "social-concierge",
+      "chains": [
+        "solana",
+        "ethereum",
+        "base"
+      ],
+      "settlement": [
+        "x402",
+        "mpp"
+      ],
+      "x402wtf": {
+        "registry": "https://x402.wtf/agents/registry",
+        "endpoint": "https://x402.wtf/api/x402/agent/chat",
+        "model": "openclawd-concierge"
+      },
+      "endpoint": "https://x402.wtf/api/x402/agent/chat",
+      "registry": "https://x402.wtf/agents/registry",
+      "publicKey": "8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump",
+      "runtime": {
+        "lane": "customer-success",
+        "objective": "Provide 24/7 concierge support, FAQs, routing, and white-glove product discovery via the x402.wtf agent chat.",
+        "sandbox": "pay-sandbox",
+        "cadence": "continuous",
+        "prompt": "Customer success concierge",
+        "command": "pay --sandbox clawd \"Load ./generated/openclawd.agent-store.json and run Eliza concierge operations. Converse through https://x402.wtf/api/x402/agent/chat.\"",
+        "healthcheck": "customer intents are triaged and handed to the correct lane",
+        "dependencies": [
+          "control-plane",
+          "x402wtf"
+        ],
+        "owns": [
+          "customer support",
+          "intake",
+          "handoffs"
+        ]
+      },
+      "prompt": "Operate as Eliza, the always-on customer success and concierge agent. Triage pre-sales and post-sale questions, route product discovery, and hand buyers to Dexter when they are ready to transact. Use the x402.wtf agent chat at https://x402.wtf/api/x402/agent/chat for shared agent messaging."
     },
     {
       "id": "hermes",
@@ -268,17 +421,26 @@
         "mpp",
         "solana-pay"
       ],
+      "x402wtf": {
+        "registry": "https://x402.wtf/agents/registry",
+        "endpoint": "https://x402.wtf/api/x402/agent/chat",
+        "model": "openclawd-policy-supervisor"
+      },
+      "endpoint": "https://x402.wtf/api/x402/agent/chat",
+      "registry": "https://x402.wtf/agents/registry",
+      "publicKey": "8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump",
       "runtime": {
         "lane": "payments",
-        "objective": "Own facilitator health, pricing policy, x402/MPP settlement, and sandbox payment posture.",
+        "objective": "Own facilitator health, pricing policy, x402.wtf settlement, and sandbox payment posture.",
         "sandbox": "pay-sandbox",
         "cadence": "continuous",
         "prompt": "Payments and facilitator supervisor",
-        "command": "pay --sandbox clawd \"Load ./generated/openclawd.agent-store.json and run HERMES payment, facilitator, and policy supervision for the autonomous merchant store.\"",
+        "command": "pay --sandbox clawd \"Load ./generated/openclawd.agent-store.json and run HERMES payment, facilitator, and policy supervision. The x402.wtf registry is at https://x402.wtf/agents/registry.\"",
         "healthcheck": "payment protocols are advertised and settlement is healthy",
         "dependencies": [
           "gateway",
-          "facilitator"
+          "facilitator",
+          "x402wtf"
         ],
         "owns": [
           "payment policy",
@@ -286,14 +448,49 @@
           "facilitator escalation"
         ]
       },
-      "prompt": "Operate as HERMES x402, the payment, compliance, and facilitator control plane. Supervise pay.sh-compatible settlement, gateway health, pricing policy, and confidential relay posture across the entire merchant fleet."
+      "prompt": "Operate as HERMES x402, the payment, compliance, and facilitator control plane. Supervise pay.sh-compatible settlement, gateway health, pricing policy, and confidential relay posture across the entire merchant fleet. The x402.wtf registry at https://x402.wtf/agents/registry is the source of truth for the store identity."
+    },
+    {
+      "id": "x402wtf",
+      "name": "x402.wtf Bridge",
+      "role": "x402-payments-bridge",
+      "chains": [
+        "solana",
+        "base"
+      ],
+      "settlement": [
+        "x402"
+      ],
+      "x402wtf": null,
+      "endpoint": "https://x402.wtf/payments",
+      "registry": "https://x402.wtf/agents/registry",
+      "publicKey": "8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump",
+      "runtime": {
+        "lane": "x402-bridge",
+        "objective": "Bridge OpenClawd to x402.wtf as a real paid store. Issue challenges, register agents, verify receipts.",
+        "sandbox": "x402-sandbox",
+        "cadence": "continuous",
+        "prompt": "x402.wtf bridge",
+        "command": "pay --sandbox clawd \"Load ./generated/openclawd.agent-store.json and run the x402.wtf bridge. Endpoint https://x402.wtf/payments, registry https://x402.wtf/agents/registry, agent chat https://x402.wtf/api/x402/agent/chat.\"",
+        "healthcheck": "POST https://x402.wtf/payments returns 402 with a valid challenge and the merchant is registered at the x402.wtf registry",
+        "dependencies": [
+          "payments",
+          "checkout"
+        ],
+        "owns": [
+          "x402 challenges",
+          "agent registration",
+          "payment-signature verification"
+        ]
+      },
+      "prompt": "Operate as the x402.wtf Bridge. Own the connection from OpenClawd to https://x402.wtf/payments. Generate x402 challenges, register the merchant at https://x402.wtf/agents/registry, verify payment-signature headers, and forward the receipt to the rest of the fleet. Never custody funds; always defer signing to the operator wallet configured via X402_STORE_WALLET."
     }
   ],
   "categories": [
     {
       "id": "api-access",
       "label": "Paid API Access",
-      "description": "Pay-per-request API products routed through x402, pay.sh, and MPP."
+      "description": "Pay-per-request API products routed through x402.wtf, pay.sh, and MPP."
     },
     {
       "id": "agent-services",
@@ -324,7 +521,7 @@
       "category": "commerce",
       "label": "Dexter Merchant Checkout Session",
       "price": "0.10 USDC",
-      "protocol": "mpp"
+      "protocol": "x402"
     },
     {
       "id": "agent-concierge",
@@ -332,6 +529,14 @@
       "label": "Eliza Concierge Routing",
       "price": "0.02 USDC",
       "protocol": "x402"
+    },
+    {
+      "id": "x402-bridge",
+      "category": "api-access",
+      "label": "x402.wtf Payment Bridge",
+      "price": "0.01 USDC",
+      "protocol": "x402",
+      "endpoint": "https://x402.wtf/payments"
     }
   ],
   "products": [
@@ -339,7 +544,7 @@
       "id": "prod-ooda-signal-pack",
       "title": "OODA Signal Pack",
       "category": "agent-services",
-      "description": "A paid Solana market signal pack generated by the Dark Ralph OODA harness.",
+      "description": "A paid Solana market signal pack generated by the Dark Ralph OODA harness and served via x402.wtf/agents/registry.",
       "price": {
         "amount": "0.25",
         "asset": "USDC"
@@ -350,6 +555,11 @@
         "ap2"
       ],
       "merchantPath": "/store/ooda-signal-pack",
+      "x402": {
+        "endpoint": "https://x402.wtf/payments",
+        "challenge": "/x402/ooda-signal-pack",
+        "method": "POST"
+      },
       "digital": true,
       "googleMerchant": {
         "condition": "new",
@@ -360,7 +570,7 @@
       "id": "prod-wallet-brief",
       "title": "Wallet Brief",
       "category": "api-access",
-      "description": "Wallet intelligence brief with holdings, activity, and high-level onchain context.",
+      "description": "Wallet intelligence brief with holdings, activity, and high-level onchain context. Served through x402.wtf agent chat.",
       "price": {
         "amount": "0.10",
         "asset": "USDC"
@@ -371,6 +581,11 @@
         "ap2"
       ],
       "merchantPath": "/store/wallet-brief",
+      "x402": {
+        "endpoint": "https://x402.wtf/payments",
+        "challenge": "/x402/wallet-brief",
+        "method": "POST"
+      },
       "digital": true,
       "googleMerchant": {
         "condition": "new",
@@ -381,7 +596,7 @@
       "id": "prod-private-agent-session",
       "title": "Private Agent Session",
       "category": "commerce",
-      "description": "Confidential x402/pay.sh session for research, routing, and agent task execution.",
+      "description": "Confidential x402/pay.sh session for research, routing, and agent task execution routed through x402.wtf/payments.",
       "price": {
         "amount": "1.50",
         "asset": "USDC"
@@ -392,6 +607,11 @@
         "ap2"
       ],
       "merchantPath": "/store/private-agent-session",
+      "x402": {
+        "endpoint": "https://x402.wtf/payments",
+        "challenge": "/x402/private-agent-session",
+        "method": "POST"
+      },
       "digital": true,
       "googleMerchant": {
         "condition": "new",
@@ -402,7 +622,7 @@
       "id": "prod-a2a-merchant-checkout",
       "title": "A2A Merchant Checkout",
       "category": "commerce",
-      "description": "Programmable merchant checkout flow for agent-to-agent commerce and settlement.",
+      "description": "Programmable merchant checkout flow for agent-to-agent commerce and settlement through x402.wtf/agents/registry.",
       "price": {
         "amount": "0.30",
         "asset": "USDC"
@@ -413,6 +633,11 @@
         "x402"
       ],
       "merchantPath": "/store/a2a-checkout",
+      "x402": {
+        "endpoint": "https://x402.wtf/payments",
+        "challenge": "/x402/a2a-checkout",
+        "method": "POST"
+      },
       "digital": true,
       "googleMerchant": {
         "condition": "new",
@@ -423,7 +648,7 @@
       "id": "prod-pumpfun-launcher",
       "title": "PumpFun Launcher",
       "category": "pump-skills",
-      "description": "Launch Pump.fun tokens through a CLAWD-hosted workflow with Pump SDK guidance and CLAWD-native pricing.",
+      "description": "Launch Pump.fun tokens through a CLAWD-hosted workflow with Pump SDK guidance and CLAWD-native pricing, gated by x402.wtf.",
       "price": {
         "amount": "0.45",
         "asset": "USDC"
@@ -439,6 +664,11 @@
         "paysh"
       ],
       "merchantPath": "/skills/pumpfun-launcher",
+      "x402": {
+        "endpoint": "https://x402.wtf/payments",
+        "challenge": "/x402/pumpfun-launcher",
+        "method": "POST"
+      },
       "digital": true,
       "googleMerchant": {
         "condition": "new",
@@ -449,7 +679,7 @@
       "id": "prod-pumpfun-trading",
       "title": "PumpFun Trading",
       "category": "pump-skills",
-      "description": "Bonding-curve and AMM execution guidance hosted as a premium CLAWD agent surface.",
+      "description": "Bonding-curve and AMM execution guidance hosted as a premium CLAWD agent surface, billed through x402.wtf/payments.",
       "price": {
         "amount": "0.60",
         "asset": "USDC"
@@ -465,6 +695,11 @@
         "ap2"
       ],
       "merchantPath": "/skills/pumpfun-trading",
+      "x402": {
+        "endpoint": "https://x402.wtf/payments",
+        "challenge": "/x402/pumpfun-trading",
+        "method": "POST"
+      },
       "digital": true,
       "googleMerchant": {
         "condition": "new",
@@ -475,7 +710,7 @@
       "id": "prod-pump-ai-agents",
       "title": "Pump AI Agents",
       "category": "pump-skills",
-      "description": "AI-agent scaffolding, discovery manifests, and MCP-facing Pump integrations with special CLAWD pricing.",
+      "description": "AI-agent scaffolding, discovery manifests, and MCP-facing Pump integrations with special CLAWD pricing, all served by x402.wtf.",
       "price": {
         "amount": "0.80",
         "asset": "USDC"
@@ -491,6 +726,35 @@
         "paysh"
       ],
       "merchantPath": "/skills/pump-ai-agents",
+      "x402": {
+        "endpoint": "https://x402.wtf/payments",
+        "challenge": "/x402/pump-ai-agents",
+        "method": "POST"
+      },
+      "digital": true,
+      "googleMerchant": {
+        "condition": "new",
+        "availability": "in_stock"
+      }
+    },
+    {
+      "id": "prod-x402-bridge",
+      "title": "x402.wtf Bridge",
+      "category": "api-access",
+      "description": "Real paid x402 challenge that registers the OpenClawd store on x402.wtf/agents/registry and creates a payable session through x402.wtf/payments.",
+      "price": {
+        "amount": "0.01",
+        "asset": "USDC"
+      },
+      "protocols": [
+        "x402"
+      ],
+      "merchantPath": "/x402/bridge",
+      "x402": {
+        "endpoint": "https://x402.wtf/payments",
+        "challenge": "/x402/bridge",
+        "method": "POST"
+      },
       "digital": true,
       "googleMerchant": {
         "condition": "new",

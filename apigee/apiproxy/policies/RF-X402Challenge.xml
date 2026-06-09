@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<RaiseFault async="false" continueOnError="false" enabled="true" name="RF-X402Challenge">
+  <DisplayName>RF-X402Challenge</DisplayName>
+  <FaultResponse>
+    <Set>
+      <StatusCode>402</StatusCode>
+      <ReasonPhrase>Payment Required</ReasonPhrase>
+      <Payload contentType="application/json">
+        {"error":"x402_challenge","provider":"x402.wtf","endpoint":"https://x402.wtf/payments","registry":"https://x402.wtf/agents/registry","publicKey":"8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump","settlementAsset":"USDC","network":"solana","merchant":"openclawd-merchant","instruction":"Sign the upstream x402 challenge with a Solana wallet and replay the request with the payment-signature header."}
+      </Payload>
+      <Headers>
+        <Header name="x-openclawd-private-edge">apigee</Header>
+        <Header name="x-openclawd-x402">challenge</Header>
+      </Headers>
+    </Set>
+  </FaultResponse>
+  <IgnoreUnresolvedVariables>true</IgnoreUnresolvedVariables>
+</RaiseFault>

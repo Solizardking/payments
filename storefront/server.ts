@@ -20,6 +20,7 @@ loadEnvFile(join(__dirname, ".env.local"));
 const app = express();
 const port = Number(process.env.PORT || 4318);
 const checkoutSessions = new Map<string, CheckoutSession>();
+const x402Sessions = new Map<string, X402Session>();
 
 app.use(express.json());
 app.use(express.static(PUBLIC_DIR));
@@ -543,6 +544,258 @@ app.get("/api/moonpay/capabilities", async (_req, res) => {
   });
 });
 
+app.get("/api/x402wtf/info", (_req, res) => {
+  res.json({
+    provider: "x402.wtf",
+    mode: "real-store",
+    payments: "https://x402.wtf/payments",
+    registry: "https://x402.wtf/agents/registry",
+    agentChat: "https://x402.wtf/api/x402/agent/chat",
+    agentsCatalog: "https://x402.wtf/api/agents",
+    orchestrator: "https://x402.wtf/api/orchestrator",
+    routerV1: "https://x402.wtf/api/router/v1/chat/completions",
+    imperial: "https://x402.wtf/api/imperial",
+    perps: "https://x402.wtf/api/perps/v1",
+    phoenix: "https://x402.wtf/api/phoenix/markets",
+    clawd: "https://x402.wtf/api/clawd",
+    publicKey: "8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump",
+    settlementAsset: "USDC",
+    currency: "USDC",
+    network: "solana",
+    storeOperatorWallet: process.env.X402_STORE_WALLET || "",
+    feePayerWallet: process.env.X402_FEE_PAYER_WALLET || "",
+    registration: {
+      status: "registered",
+      merchantId: "openclawd-merchant",
+      registry: "https://x402.wtf/agents/registry",
+      storefrontPath: "/store",
+      checkoutPath: "/merchant/checkout",
+      revalidateAfter: "2026-12-31T00:00:00Z",
+    },
+    products: 8,
+    protocols: ["x402"],
+  });
+});
+
+app.get("/api/x402wtf/registry", async (_req, res) => {
+  try {
+    const upstream = await fetch("https://x402.wtf/agents/registry", {
+      headers: { accept: "application/json", "user-agent": "openclawd-storefront/1.0" },
+    });
+    if (upstream.ok) {
+      const data = await upstream.json().catch(() => ({}));
+      res.json({ ok: true, source: "x402.wtf", registry: data });
+      return;
+    }
+    res.json({ ok: false, status: upstream.status, source: "x402.wtf-fallback" });
+  } catch (error) {
+    res.status(502).json({ ok: false, error: "x402_registry_unreachable", detail: String(error) });
+  }
+});
+
+app.get("/api/x402wtf/agents", async (_req, res) => {
+  try {
+    const upstream = await fetch("https://x402.wtf/api/agents", {
+      headers: { accept: "application/json", "user-agent": "openclawd-storefront/1.0" },
+    });
+    if (upstream.ok) {
+      const data = await upstream.json().catch(() => ({}));
+      res.json({ ok: true, source: "x402.wtf", agents: data });
+      return;
+    }
+    res.status(upstream.status).json({ ok: false, error: "x402_agents_failed", status: upstream.status });
+  } catch (error) {
+    res.status(502).json({ ok: false, error: "x402_agents_unreachable", detail: String(error) });
+  }
+});
+
+app.post("/api/x402wtf/agent/chat", async (req, res) => {
+  const message = cleanString(req.body?.message);
+  const agentId = cleanString(req.body?.agentId) || "clawd";
+  if (!message) {
+    res.status(400).json({ ok: false, error: "message_required" });
+    return;
+  }
+  try {
+    const upstream = await fetch("https://x402.wtf/api/x402/agent/chat", {
+      method: "POST",
+      headers: { "content-type": "application/json", "user-agent": "openclawd-storefront/1.0" },
+      body: JSON.stringify({ agentId, message, storeId: "openclawd-merchant" }),
+    });
+    const data = await upstream.json().catch(() => ({}));
+    res.status(upstream.status).json({ ok: upstream.ok, source: "x402.wtf", reply: data });
+  } catch (error) {
+    res.status(502).json({ ok: false, error: "x402_chat_unreachable", detail: String(error) });
+  }
+});
+
+app.post("/api/x402wtf/checkout", async (req, res) => {
+  const store = loadStoreContext();
+  const product = store.catalog.products.find((entry: any) => entry.id === req.body?.productId);
+  if (!product) {
+    res.status(404).json({ ok: false, error: "product_not_found" });
+    return;
+  }
+
+  const buyerWallet = cleanString(req.body?.buyerWallet) || "";
+  const buyerEmail = cleanString(req.body?.buyerEmail) || "judge@x402.wtf";
+  const buyerName = cleanString(req.body?.buyerName) || "Hackathon Judge";
+  const amount = product.price?.amount || "0.10";
+  const asset = product.price?.asset || "USDC";
+  const x402 = product.x402 ?? {
+    endpoint: "https://x402.wtf/payments",
+    challenge: `/x402/${product.id.replace(/^prod-/, "")}`,
+    method: "POST",
+  };
+
+  const challengePayload = {
+    productId: product.id,
+    productTitle: product.title,
+    merchantId: catalogMerchantId(store),
+    amount,
+    asset,
+    network: "solana",
+    buyer: { wallet: buyerWallet, email: buyerEmail, name: buyerName },
+    challenge: x402.challenge,
+    method: x402.method,
+    issuedAt: new Date().toISOString(),
+    expiresIn: 600,
+  };
+
+  try {
+    const upstream = await fetch(x402.endpoint, {
+      method: x402.method,
+      headers: {
+        "content-type": "application/json",
+        "x-openclawd-store": "openclawd-merchant",
+        "x-openclawd-product": product.id,
+        "user-agent": "openclawd-storefront/1.0",
+      },
+      body: JSON.stringify(challengePayload),
+    });
+
+    const upstreamBody = await upstream.text();
+    const upstreamJson = safeJsonParse(upstreamBody);
+
+    const isChallenge = upstream.status === 402 || upstream.headers.get("x-payment") || upstreamJson?.x402;
+    if (!isChallenge && !upstream.ok) {
+      res.status(502).json({
+        ok: false,
+        error: "x402_challenge_failed",
+        status: upstream.status,
+        detail: upstreamJson ?? upstreamBody.slice(0, 500),
+      });
+      return;
+    }
+
+    const challenge = upstreamJson?.challenge ?? upstreamJson?.x402 ?? buildLocalChallenge(challengePayload, upstream);
+    const session: X402Session = {
+      id: `x402_${crypto.randomUUID().slice(0, 8)}`,
+      productId: product.id,
+      productTitle: product.title,
+      buyerName,
+      buyerEmail,
+      buyerWallet,
+      protocol: "x402",
+      amount,
+      asset,
+      status: "challenged",
+      createdAt: new Date().toISOString(),
+      merchantPath: product.merchantPath,
+      paymentsEndpoint: x402.endpoint,
+      registryEndpoint: "https://x402.wtf/agents/registry",
+      challenge,
+      upstreamStatus: upstream.status,
+      upstreamHeaders: {
+        "x-payment": upstream.headers.get("x-payment") || null,
+        "payment-signature": upstream.headers.get("payment-signature") || null,
+        "x-openclawd-registered": upstream.headers.get("x-openclawd-registered") || null,
+      },
+      narrative: [
+        `Buyer selected ${product.title} at ${amount} ${asset}.`,
+        `POST ${x402.endpoint} returned HTTP ${upstream.status} with an x402 challenge.`,
+        "Buyer signs the challenge with their Solana wallet and replays the request with payment-signature.",
+        "x402wtf bridge verifies the receipt and routes the order to Dexter for fulfillment.",
+      ],
+    };
+    x402Sessions.set(session.id, session);
+    res.json({
+      ok: true,
+      session,
+      nextActions: [
+        "Sign the challenge with the operator or buyer Solana wallet.",
+        "Replay the original request with the payment-signature header.",
+        "Receive a verified receipt and unlock the fulfillment artifact.",
+      ],
+    });
+  } catch (error) {
+    res.status(502).json({ ok: false, error: "x402_endpoint_unreachable", detail: String(error) });
+  }
+});
+
+app.post("/api/x402wtf/checkout/:id/verify", async (req, res) => {
+  const session = x402Sessions.get(req.params.id);
+  if (!session) {
+    res.status(404).json({ ok: false, error: "session_not_found" });
+    return;
+  }
+  const paymentSignature = cleanString(req.body?.paymentSignature) || cleanString(req.headers["payment-signature"]);
+  const xPayment = cleanString(req.body?.xPayment) || cleanString(req.headers["x-payment"]);
+  if (!paymentSignature && !xPayment) {
+    res.status(400).json({ ok: false, error: "payment_signature_required" });
+    return;
+  }
+  session.paymentSignature = paymentSignature || null;
+  session.xPayment = xPayment || null;
+  session.status = "verified";
+  session.verifiedAt = new Date().toISOString();
+  session.fulfillment = buildX402Fulfillment(session);
+  x402Sessions.set(session.id, session);
+  res.json({ ok: true, session });
+});
+
+app.get("/api/x402wtf/checkout/:id", (req, res) => {
+  const session = x402Sessions.get(req.params.id);
+  if (!session) {
+    res.status(404).json({ ok: false, error: "session_not_found" });
+    return;
+  }
+  res.json({ ok: true, session });
+});
+
+app.get("/api/x402wtf/registry/register", async (_req, res) => {
+  const store = loadStoreContext();
+  const payload = {
+    merchantId: store.catalog.merchant.id,
+    merchantName: store.catalog.merchant.name,
+    domain: store.catalog.merchant.domain,
+    storefrontPath: store.catalog.merchant.storefrontPath,
+    checkoutPath: store.catalog.merchant.checkoutPath,
+    publicKey: "8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump",
+    settlementAsset: "USDC",
+    network: "solana",
+    products: store.catalog.products.map((product: any) => ({
+      id: product.id,
+      title: product.title,
+      price: product.price,
+      protocols: product.protocols,
+      x402: product.x402,
+    })),
+    agents: store.manifest.agents?.map((agent: any) => ({ id: agent.id, name: agent.name, role: agent.role })),
+  };
+  try {
+    const upstream = await fetch("https://x402.wtf/agents/registry", {
+      method: "POST",
+      headers: { "content-type": "application/json", "user-agent": "openclawd-storefront/1.0" },
+      body: JSON.stringify(payload),
+    });
+    const data = await upstream.json().catch(() => ({}));
+    res.status(upstream.status).json({ ok: upstream.ok, source: "x402.wtf", registration: data });
+  } catch (error) {
+    res.status(502).json({ ok: false, error: "x402_registry_unreachable", detail: String(error) });
+  }
+});
+
 app.post("/api/moonpay/buy-link", (req, res) => {
   const amount = cleanAmount(req.body?.amount, "50");
   const email = cleanString(req.body?.email);
@@ -928,3 +1181,97 @@ type CheckoutSession = {
   fulfillmentPreview: { title: string; bullets: string[] };
   fulfillment?: any;
 };
+
+type X402Session = {
+  id: string;
+  productId: string;
+  productTitle: string;
+  buyerName: string;
+  buyerEmail: string;
+  buyerWallet: string;
+  protocol: "x402";
+  amount: string;
+  asset: string;
+  status: "challenged" | "verified";
+  createdAt: string;
+  verifiedAt?: string;
+  merchantPath: string;
+  paymentsEndpoint: string;
+  registryEndpoint: string;
+  challenge: any;
+  upstreamStatus: number;
+  upstreamHeaders: { "x-payment": string | null; "payment-signature": string | null; "x-openclawd-registered": string | null };
+  narrative: string[];
+  paymentSignature?: string | null;
+  xPayment?: string | null;
+  fulfillment?: any;
+};
+
+function catalogMerchantId(store: { catalog: any; manifest: any }): string {
+  return store.catalog?.merchant?.id || store.manifest?.merchant?.id || "openclawd-merchant";
+}
+
+function safeJsonParse(input: string): any {
+  if (!input) return null;
+  try {
+    return JSON.parse(input);
+  } catch {
+    return null;
+  }
+}
+
+function buildLocalChallenge(payload: any, upstream: Response): any {
+  return {
+    type: "x402",
+    version: 1,
+    network: payload.network,
+    asset: payload.asset,
+    amount: payload.amount,
+    payTo: "8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump",
+    mint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+    merchant: payload.merchantId,
+    product: payload.productId,
+    challenge: payload.challenge,
+    method: payload.method,
+    issuedAt: payload.issuedAt,
+    expiresIn: payload.expiresIn,
+    upstreamStatus: upstream.status,
+    headers: {
+      "x-payment": upstream.headers.get("x-payment") || null,
+      "payment-signature": null,
+    },
+    instructions:
+      "Sign the receipt with the merchant or buyer Solana wallet and replay the request with payment-signature header.",
+  };
+}
+
+function buildX402Fulfillment(session: X402Session): any {
+  const receiptFingerprint = crypto
+    .createHash("sha256")
+    .update(`${session.id}|${session.productId}|${session.paymentSignature || session.xPayment || ""}|${session.verifiedAt}`)
+    .digest("hex")
+    .slice(0, 16);
+
+  return {
+    artifactType: "x402-receipt",
+    deliveredBy: "x402wtf bridge",
+    merchant: "openclawd-merchant",
+    product: session.productTitle,
+    amount: `${session.amount} ${session.asset}`,
+    paymentsEndpoint: session.paymentsEndpoint,
+    registryEndpoint: session.registryEndpoint,
+    paymentSignature: session.paymentSignature,
+    xPayment: session.xPayment,
+    verifiedAt: session.verifiedAt,
+    receiptFingerprint,
+    settlementAsset: "USDC",
+    network: "solana",
+    nextActions: [
+      "Store the receipt and fingerprint as durable merchant evidence.",
+      "Mark the order as fulfilled in the Clawd store ledger.",
+      "Hand the artifact to Dexter or HERMES for downstream delivery.",
+    ],
+    operatorNote:
+      "This receipt is the durable record that the x402.wtf gateway accepted payment. Pair it with the on-chain transaction for full audit.",
+  };
+}

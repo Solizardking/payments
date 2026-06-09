@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<AssignMessage async="false" continueOnError="false" enabled="true" name="AM-SetX402Headers">
+  <DisplayName>AM-SetX402Headers</DisplayName>
+  <AssignVariable>
+    <Name>private.x402.payments</Name>
+    <Value>https://x402.wtf/payments</Value>
+  </AssignVariable>
+  <AssignVariable>
+    <Name>private.x402.registry</Name>
+    <Value>https://x402.wtf/agents/registry</Value>
+  </AssignVariable>
+  <AssignVariable>
+    <Name>private.x402.publicKey</Name>
+    <Value>8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump</Value>
+  </AssignVariable>
+  <AssignVariable>
+    <Name>private.x402.network</Name>
+    <Value>solana</Value>
+  </AssignVariable>
+  <AssignVariable>
+    <Name>private.x402.asset</Name>
+    <Value>USDC</Value>
+  </AssignVariable>
+  <AssignVariable>
+    <Name>request.header.x-openclawd-merchant</Name>
+    <Value>openclawd-merchant</Value>
+  </AssignVariable>
+  <AssignVariable>
+    <Name>request.header.x-openclawd-edge</Name>
+    <Value>apigee-private</Value>
+  </AssignVariable>
+  <AssignVariable>
+    <Name>request.header.accept</Name>
+    <Value>application/json</Value>
+  </AssignVariable>
+  <IgnoreUnresolvedVariables>true</IgnoreUnresolvedVariables>
+</AssignMessage>

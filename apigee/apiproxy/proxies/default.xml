@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <ProxyEndpoint name="default">
-  <Description>Private ingress proxy for the OpenClawd autonomous merchant fleet.</Description>
+  <Description>Private ingress proxy for the OpenClawd autonomous merchant fleet. Routes x402.wtf paid challenges, MPP, AP2, A2A, and facilitator traffic behind a confidential edge.</Description>
   <PreFlow name="PreFlow">
     <Request>
       <Step>
@@ -29,6 +29,22 @@
     <Flow name="Health">
       <Condition>(proxy.pathsuffix MatchesPath "/health") and (request.verb = "GET")</Condition>
     </Flow>
+    <Flow name="X402Registry">
+      <Description>Public x402.wtf agent registry and merchant registration flows. Forwards signed manifest to x402.wtf/agents/registry.</Description>
+      <Condition>(proxy.pathsuffix MatchesPath "/x402/registry") and ((request.verb = "GET") or (request.verb = "POST"))</Condition>
+    </Flow>
+    <Flow name="X402Payments">
+      <Description>Real paid x402 store lane. Forwards paid challenges to https://x402.wtf/payments, validates payment-signature header, and returns 402 challenges to clients.</Description>
+      <Condition>(proxy.pathsuffix MatchesPath "/x402/payments/**") and ((request.verb = "GET") or (request.verb = "POST"))</Condition>
+    </Flow>
+    <Flow name="X402AgentChat">
+      <Description>Bridge for x402.wtf agent chat at /api/x402/agent/chat.</Description>
+      <Condition>(proxy.pathsuffix MatchesPath "/x402/agent/chat") and (request.verb = "POST")</Condition>
+    </Flow>
+    <Flow name="X402Agents">
+      <Description>Bridge for x402.wtf agents catalog at /api/agents.</Description>
+      <Condition>(proxy.pathsuffix MatchesPath "/x402/agents") and (request.verb = "GET")</Condition>
+    </Flow>
     <Flow name="Registry">
       <Condition>(proxy.pathsuffix MatchesPath "/registry/**")</Condition>
     </Flow>
@@ -45,6 +61,22 @@
   <HTTPProxyConnection>
     <BasePath>/openclawd/private-store</BasePath>
   </HTTPProxyConnection>
+  <RouteRule name="route-x402-payments">
+    <Condition>proxy.pathsuffix MatchesPath "/x402/payments/**"</Condition>
+    <TargetEndpoint>x402-payments</TargetEndpoint>
+  </RouteRule>
+  <RouteRule name="route-x402-registry">
+    <Condition>proxy.pathsuffix MatchesPath "/x402/registry"</Condition>
+    <TargetEndpoint>x402-registry</TargetEndpoint>
+  </RouteRule>
+  <RouteRule name="route-x402-agent-chat">
+    <Condition>proxy.pathsuffix MatchesPath "/x402/agent/chat"</Condition>
+    <TargetEndpoint>x402-agent-chat</TargetEndpoint>
+  </RouteRule>
+  <RouteRule name="route-x402-agents">
+    <Condition>proxy.pathsuffix MatchesPath "/x402/agents"</Condition>
+    <TargetEndpoint>x402-agents</TargetEndpoint>
+  </RouteRule>
   <RouteRule name="route-default">
     <TargetEndpoint>default</TargetEndpoint>
   </RouteRule>
@@ -54,6 +86,12 @@
         <Name>RF-Unauthorized</Name>
       </Step>
       <Condition>(fault.name = "FailedToResolveAPIKey") or (fault.name = "ExecutionFailed")</Condition>
+    </FaultRule>
+    <FaultRule name="x402-challenge-required">
+      <Step>
+        <Name>RF-X402Challenge</Name>
+      </Step>
+      <Condition>(proxy.pathsuffix MatchesPath "/x402/payments/**") and (response.status.code = 402)</Condition>
     </FaultRule>
   </FaultRules>
 </ProxyEndpoint>

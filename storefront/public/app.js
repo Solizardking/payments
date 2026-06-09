@@ -9,6 +9,10 @@ const state = {
   moonpayWorkbench: null,
   placesService: null,
   googleReady: false,
+  x402Info: null,
+  x402Registry: null,
+  x402Session: null,
+  x402Agents: null,
 };
 
 init().catch((error) => {
@@ -60,10 +64,13 @@ async function init() {
   bindCheckoutLab();
   bindJudgeMode();
   bindLiveAgents();
+  bindX402();
 
   if (state.config.public.googleApiKey) {
     await loadGooglePlaces(state.config.public.googleApiKey);
   }
+
+  await loadX402();
 }
 
 function renderHero() {
@@ -612,4 +619,199 @@ function humanize(value) {
     .split(/[-_]/)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+async function loadX402() {
+  const statusBox = document.getElementById("x402-store-status");
+  statusBox.textContent = "connecting…";
+  const [infoRes, registryRes, agentsRes] = await Promise.all([
+    fetch("/api/x402wtf/info"),
+    fetch("/api/x402wtf/registry"),
+    fetch("/api/x402wtf/agents"),
+  ]);
+  state.x402Info = await infoRes.json();
+  const registryJson = await registryRes.json().catch(() => ({}));
+  const agentsJson = await agentsRes.json().catch(() => ({}));
+  state.x402Registry = registryJson.registry || registryJson;
+  state.x402Agents = agentsJson.agents || null;
+
+  renderX402StoreInfo();
+  renderX402Registry();
+  renderX402CheckoutForm();
+
+  statusBox.textContent = state.x402Info?.registration?.status
+    ? `registered · ${state.x402Info.registration.merchantId}`
+    : "registered";
+}
+
+function renderX402StoreInfo() {
+  const box = document.getElementById("x402-store-info");
+  if (!state.x402Info) {
+    box.textContent = "x402.wtf connection unavailable.";
+    return;
+  }
+  const info = state.x402Info;
+  const rows = [
+    ["Provider", info.provider],
+    ["Mode", info.mode],
+    ["Payments", info.payments],
+    ["Registry", info.registry],
+    ["Agent Chat", info.agentChat],
+    ["Public Key", info.publicKey],
+    ["Settlement Asset", info.settlementAsset],
+    ["Network", info.network],
+    ["Store Operator Wallet", info.storeOperatorWallet || "set X402_STORE_WALLET"],
+    ["Fee Payer Wallet", info.feePayerWallet || "set X402_FEE_PAYER_WALLET"],
+    ["Merchant Id", info.registration?.merchantId || "openclawd-merchant"],
+    ["Products Wired", String(info.products || 0)],
+  ];
+  box.innerHTML = rows
+    .map(([label, value]) => `<div class="terminal-row"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`)
+    .join("");
+}
+
+function renderX402Registry() {
+  const out = document.getElementById("x402-registry-output");
+  const info = state.x402Info;
+  const live = state.x402Registry;
+  if (!info) {
+    out.textContent = "x402.wtf registry not loaded.";
+    return;
+  }
+  if (live && (live.merchantId || live.publicKey || live.name)) {
+    out.textContent = JSON.stringify(live, null, 2);
+    return;
+  }
+  out.textContent = JSON.stringify(
+    {
+      merchantId: info.registration?.merchantId,
+      registry: info.registry,
+      publicKey: info.publicKey,
+      settlementAsset: info.settlementAsset,
+      network: info.network,
+      storefrontPath: info.registration?.storefrontPath,
+      checkoutPath: info.registration?.checkoutPath,
+      revalidateAfter: info.registration?.revalidateAfter,
+    },
+    null,
+    2,
+  );
+}
+
+function renderX402CheckoutForm() {
+  const productSelect = document.getElementById("x402-product");
+  if (!productSelect) return;
+  productSelect.innerHTML = (state.store.catalog.products || [])
+    .map((product) => `<option value="${escapeHtml(product.id)}">${escapeHtml(product.title)} · ${escapeHtml(product.price.amount)} ${escapeHtml(product.price.asset)}</option>`)
+    .join("");
+}
+
+function bindX402() {
+  document.getElementById("x402-registry-register").addEventListener("click", registerX402Merchant);
+  document.getElementById("x402-chat-run").addEventListener("click", sendX402Chat);
+  document.getElementById("x402-create").addEventListener("click", createX402Session);
+  document.getElementById("x402-verify").addEventListener("click", verifyX402Session);
+}
+
+async function registerX402Merchant() {
+  const out = document.getElementById("x402-registry-output");
+  out.textContent = "Registering merchant on x402.wtf...";
+  try {
+    const response = await fetch("/api/x402wtf/registry/register", { method: "POST" });
+    const data = await response.json();
+    out.textContent = JSON.stringify(data, null, 2);
+  } catch (error) {
+    out.textContent = `Registration failed: ${String(error)}`;
+  }
+}
+
+async function sendX402Chat() {
+  const out = document.getElementById("x402-chat-output");
+  out.textContent = "Sending x402 agent chat...";
+  const response = await fetch("/api/x402wtf/agent/chat", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      agentId: document.getElementById("x402-chat-agent").value,
+      message: document.getElementById("x402-chat-message").value,
+    }),
+  });
+  const data = await response.json();
+  out.textContent = JSON.stringify(data, null, 2);
+}
+
+async function createX402Session() {
+  const out = document.getElementById("x402-session");
+  out.textContent = "Creating x402 challenge...";
+  const response = await fetch("/api/x402wtf/checkout", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      productId: document.getElementById("x402-product").value,
+      buyerWallet: document.getElementById("x402-buyer-wallet").value,
+      buyerName: document.getElementById("x402-buyer-name").value,
+      buyerEmail: document.getElementById("x402-buyer-email").value,
+    }),
+  });
+  const data = await response.json();
+  if (!data?.session) {
+    out.textContent = JSON.stringify(data, null, 2);
+    return;
+  }
+  state.x402Session = data.session;
+  renderX402Session();
+}
+
+async function verifyX402Session() {
+  if (!state.x402Session?.id) return;
+  const signature = document.getElementById("x402-signature").value.trim();
+  if (!signature) {
+    document.getElementById("x402-fulfillment").textContent = "Paste a payment-signature to verify.";
+    return;
+  }
+  const response = await fetch(`/api/x402wtf/checkout/${encodeURIComponent(state.x402Session.id)}/verify`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ paymentSignature: signature }),
+  });
+  const data = await response.json();
+  if (data?.session) {
+    state.x402Session = data.session;
+    renderX402Session();
+  } else {
+    document.getElementById("x402-fulfillment").textContent = JSON.stringify(data, null, 2);
+  }
+}
+
+function renderX402Session() {
+  const sessionBox = document.getElementById("x402-session");
+  const fulfillmentBox = document.getElementById("x402-fulfillment");
+  const session = state.x402Session;
+  if (!session) {
+    sessionBox.textContent = "No x402 session created yet.";
+    fulfillmentBox.textContent = "Verify the payment-signature to unlock the receipt.";
+    return;
+  }
+  const rows = [
+    ["Session", session.id],
+    ["Product", session.productTitle],
+    ["Status", session.status],
+    ["Payments Endpoint", session.paymentsEndpoint],
+    ["Registry", session.registryEndpoint],
+    ["Upstream Status", String(session.upstreamStatus)],
+    ["Buyer Wallet", session.buyerWallet || "not provided"],
+    ["Amount", `${session.amount} ${session.asset}`],
+    ...(session.narrative || []).map((line, index) => [`Step ${index + 1}`, line]),
+  ];
+  sessionBox.innerHTML = rows
+    .map(([label, value]) => `<div class="terminal-row"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`)
+    .join("");
+  if (session.challenge) {
+    sessionBox.innerHTML += `<div class="terminal-row"><span>Challenge</span><strong>${escapeHtml(JSON.stringify(session.challenge).slice(0, 120))}…</strong></div>`;
+  }
+  fulfillmentBox.textContent = JSON.stringify(
+    session.fulfillment || { challenge: session.challenge, headers: session.upstreamHeaders },
+    null,
+    2,
+  );
 }
