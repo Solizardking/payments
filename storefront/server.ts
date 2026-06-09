@@ -936,9 +936,13 @@ app.get("*", (_req, res) => {
   res.sendFile(join(PUBLIC_DIR, "index.html"));
 });
 
-app.listen(port, () => {
-  console.log(`OpenClawd storefront listening on http://127.0.0.1:${port}`);
-});
+if (!process.env.VERCEL) {
+  app.listen(port, () => {
+    console.log(`OpenClawd storefront listening on http://127.0.0.1:${port}`);
+  });
+}
+
+export default app;
 
 function readJson(path: string): unknown {
   return JSON.parse(readFileSync(path, "utf8"));
