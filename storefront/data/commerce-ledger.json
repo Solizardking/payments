@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "createdAt": "2026-06-09T18:08:27.453Z",
+  "events": [
+    {
+      "id": "evt_9152a70f-7",
+      "type": "checkout_session_created",
+      "at": "2026-06-09T18:08:27.453Z",
+      "detail": {
+        "sessionId": "sess_6e8c8ec6",
+        "productId": "prod-private-agent-session",
+        "amount": "1.50",
+        "asset": "USDC",
+        "protocol": "paysh",
+        "buyerEmail": "test@example.com"
+      }
+    },
+    {
+      "id": "evt_5e6f1c88-e",
+      "type": "x402_challenged",
+      "at": "2026-06-09T18:08:27.649Z",
+      "detail": {
+        "sessionId": "x402_c483e189",
+        "productId": "prod-x402-bridge",
+        "amount": "0.01",
+        "asset": "USDC",
+        "upstreamStatus": 403,
+        "paymentsEndpoint": "https://x402.wtf/payments",
+        "buyerWallet": "DemoWallet111111111111111111111111111111111"
+      }
+    },
+    {
+      "id": "evt_fa93f057-6",
+      "type": "checkout_funded",
+      "at": "2026-06-09T18:08:33.394Z",
+      "detail": {
+        "sessionId": "sess_6e8c8ec6",
+        "productId": "prod-private-agent-session",
+        "amount": "1.50",
+        "asset": "USDC",
+        "protocol": "paysh",
+        "settlementRef": "settl_cb85775f-f"
+      }
+    },
+    {
+      "id": "evt_9b355c29-6",
+      "type": "ai_fulfillment_failed",
+      "at": "2026-06-09T18:08:33.394Z",
+      "detail": {
+        "sessionId": "sess_6e8c8ec6",
+        "productId": "prod-private-agent-session",
+        "provider": "none",
+        "reason": "provider_not_configured"
+      }
+    },
+    {
+      "id": "evt_89282d58-3",
+      "type": "x402_verified",
+      "at": "2026-06-09T18:08:33.398Z",
+      "detail": {
+        "sessionId": "x402_c483e189",
+        "productId": "prod-x402-bridge",
+        "amount": "0.01",
+        "asset": "USDC",
+        "paymentsEndpoint": "https://x402.wtf/payments",
+        "paymentSignaturePresent": true,
+        "xPaymentPresent": false
+      }
+    },
+    {
+      "id": "evt_9eb3a549-9",
+      "type": "ai_fulfillment_failed",
+      "at": "2026-06-09T18:08:33.398Z",
+      "detail": {
+        "sessionId": "x402_c483e189",
+        "productId": "prod-x402-bridge",
+        "provider": "none",
+        "reason": "provider_not_configured"
+      }
+    }
+  ]
+}

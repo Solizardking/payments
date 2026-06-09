@@ -1,6 +1,6 @@
 import express from "express";
 import { execFile } from "child_process";
-import { existsSync, readFileSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { promisify } from "util";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
@@ -14,6 +14,8 @@ const PUBLIC_DIR = join(__dirname, "public");
 const MANIFEST_PATH = join(ROOT, "generated", "openclawd.agent-store.json");
 const CATALOG_PATH = join(ROOT, "catalog.json");
 const FRONTIER_PATH = join(ROOT, "frontier-inspirations.json");
+const DATA_DIR = join(ROOT, "storefront", "data");
+const LEDGER_PATH = join(DATA_DIR, "commerce-ledger.json");
 
 loadEnvFile(join(__dirname, ".env.local"));
 
@@ -67,6 +69,31 @@ app.get("/api/store", (_req, res) => {
   res.json({
     manifest: readJson(MANIFEST_PATH),
     catalog: readJson(CATALOG_PATH),
+  });
+});
+
+app.get("/api/commerce/summary", (_req, res) => {
+  const ledger = readLedger();
+  const paidEvents = ledger.events.filter((event) => event.type === "x402_verified" || event.type === "checkout_funded");
+  const aiFulfillments = ledger.events.filter((event) => event.type === "ai_fulfillment_succeeded");
+  const failedAiFulfillments = ledger.events.filter((event) => event.type === "ai_fulfillment_failed");
+
+  res.json({
+    ok: true,
+    summary: {
+      totalEvents: ledger.events.length,
+      checkoutSessionsCreated: ledger.events.filter((event) => event.type === "checkout_session_created").length,
+      checkoutSessionsFunded: ledger.events.filter((event) => event.type === "checkout_funded").length,
+      x402ChallengesCreated: ledger.events.filter((event) => event.type === "x402_challenged").length,
+      x402PaymentsVerified: ledger.events.filter((event) => event.type === "x402_verified").length,
+      totalPaidConversions: paidEvents.length,
+      aiFulfillmentsSucceeded: aiFulfillments.length,
+      aiFulfillmentsFailed: failedAiFulfillments.length,
+      latestPaidAt: paidEvents.at(-1)?.at || null,
+      latestAiFulfillmentAt: aiFulfillments.at(-1)?.at || null,
+    },
+    provider: resolveInferenceProvider().name,
+    recentEvents: ledger.events.slice(-25).reverse(),
   });
 });
 
@@ -274,6 +301,14 @@ app.post("/api/checkout/session", (req, res) => {
   };
 
   checkoutSessions.set(session.id, session);
+  appendLedgerEvent("checkout_session_created", {
+    sessionId: session.id,
+    productId: session.productId,
+    amount: session.amount,
+    asset: session.asset,
+    protocol: session.protocol,
+    buyerEmail: session.buyerEmail,
+  });
   res.json({
     ok: true,
     session,
@@ -285,7 +320,7 @@ app.post("/api/checkout/session", (req, res) => {
   });
 });
 
-app.post("/api/checkout/session/:id/fund", (req, res) => {
+app.post("/api/checkout/session/:id/fund", async (req, res) => {
   const session = checkoutSessions.get(req.params.id);
   if (!session) {
     res.status(404).json({ ok: false, error: "session_not_found" });
@@ -295,7 +330,15 @@ app.post("/api/checkout/session/:id/fund", (req, res) => {
   session.status = "funded";
   session.fundedAt = new Date().toISOString();
   session.settlementRef = `settl_${crypto.randomUUID().slice(0, 10)}`;
-  session.fulfillment = buildFulfillmentArtifact(session);
+  appendLedgerEvent("checkout_funded", {
+    sessionId: session.id,
+    productId: session.productId,
+    amount: session.amount,
+    asset: session.asset,
+    protocol: session.protocol,
+    settlementRef: session.settlementRef,
+  });
+  session.fulfillment = await buildFulfillmentArtifact(session);
   checkoutSessions.set(session.id, session);
 
   res.json({
@@ -725,6 +768,15 @@ app.post("/api/x402wtf/checkout", async (req, res) => {
       ],
     };
     x402Sessions.set(session.id, session);
+    appendLedgerEvent("x402_challenged", {
+      sessionId: session.id,
+      productId: session.productId,
+      amount: session.amount,
+      asset: session.asset,
+      upstreamStatus: session.upstreamStatus,
+      paymentsEndpoint: session.paymentsEndpoint,
+      buyerWallet: session.buyerWallet,
+    });
     res.json({
       ok: true,
       session,
@@ -755,7 +807,16 @@ app.post("/api/x402wtf/checkout/:id/verify", async (req, res) => {
   session.xPayment = xPayment || null;
   session.status = "verified";
   session.verifiedAt = new Date().toISOString();
-  session.fulfillment = buildX402Fulfillment(session);
+  appendLedgerEvent("x402_verified", {
+    sessionId: session.id,
+    productId: session.productId,
+    amount: session.amount,
+    asset: session.asset,
+    paymentsEndpoint: session.paymentsEndpoint,
+    paymentSignaturePresent: Boolean(session.paymentSignature),
+    xPaymentPresent: Boolean(session.xPayment),
+  });
+  session.fulfillment = await buildX402Fulfillment(session);
   x402Sessions.set(session.id, session);
   res.json({ ok: true, session });
 });
@@ -883,6 +944,10 @@ function readJson(path: string): unknown {
   return JSON.parse(readFileSync(path, "utf8"));
 }
 
+function ensureDataDir(): void {
+  mkdirSync(DATA_DIR, { recursive: true });
+}
+
 function loadEnvFile(path: string): void {
   if (!existsSync(path)) return;
   const lines = readFileSync(path, "utf8").split(/\r?\n/);
@@ -956,6 +1021,35 @@ function loadStoreContext(): { manifest: any; catalog: any; frontier: any } {
   };
 }
 
+function readLedger(): CommerceLedger {
+  ensureDataDir();
+  if (!existsSync(LEDGER_PATH)) {
+    return { version: 1, createdAt: new Date().toISOString(), events: [] };
+  }
+
+  try {
+    return JSON.parse(readFileSync(LEDGER_PATH, "utf8")) as CommerceLedger;
+  } catch {
+    return { version: 1, createdAt: new Date().toISOString(), events: [] };
+  }
+}
+
+function appendLedgerEvent(type: LedgerEventType, detail: Record<string, unknown>): void {
+  const ledger = readLedger();
+  ledger.events.push({
+    id: `evt_${crypto.randomUUID().slice(0, 10)}`,
+    type,
+    at: new Date().toISOString(),
+    detail,
+  });
+  writeLedger(ledger);
+}
+
+function writeLedger(ledger: CommerceLedger): void {
+  ensureDataDir();
+  writeFileSync(LEDGER_PATH, JSON.stringify(ledger, null, 2));
+}
+
 function pickProtocol(requested: unknown, supported: string[]): string {
   const clean = cleanString(requested);
   return supported.includes(clean) ? clean : supported[0] || "x402";
@@ -1011,76 +1105,29 @@ function buildSessionNarrative(product: any, protocol: string): string[] {
   ];
 }
 
-function buildFulfillmentArtifact(session: CheckoutSession): any {
+async function buildFulfillmentArtifact(session: CheckoutSession): Promise<any> {
   if (session.productId === "prod-ooda-signal-pack") {
-    return {
-      artifactType: "signal-pack",
-      deliveredBy: "Dark Ralph",
-      generatedAt: new Date().toISOString(),
-      items: [
-        {
-          market: "SOL/USDC",
-          signal: "Momentum continuation above local reclaim",
-          entry: "172.40",
-          invalidation: "168.80",
-          target: "179.50",
-          confidence: "high",
-        },
-        {
-          market: "JUP/USDC",
-          signal: "Mean-reversion scalp after expansion failure",
-          entry: "1.06",
-          invalidation: "1.01",
-          target: "1.14",
-          confidence: "medium",
-        },
-        {
-          market: "BONK/USDC",
-          signal: "Event-driven liquidity burst monitor",
-          entry: "watchlist",
-          invalidation: "cancel on weak volume",
-          target: "sell strength into spike",
-          confidence: "speculative",
-        },
-      ],
-      operatorNote:
-        "Ralph favors USDC-denominated execution and avoids custody. Treat this as a paid operator brief, not automated trade execution.",
-    };
+    return buildPaidInferenceArtifact(session, {
+      role: "Dark Ralph",
+      task:
+        "Produce a concise paid Solana signal pack with exactly three trade ideas. Return JSON with keys summary, items, and operatorNote.",
+    });
   }
 
   if (session.productId === "prod-wallet-brief") {
-    return {
-      artifactType: "wallet-brief",
-      deliveredBy: "Clawd Research",
-      generatedAt: new Date().toISOString(),
-      summary: {
-        concentration: "High SOL beta with selective DeFi exposure",
-        behavior: "Swing-active wallet with periodic exchange interactions",
-        risk: "Moderate volatility sensitivity",
-      },
-      recommendations: [
-        "Monitor rotation into majors before adding illiquid positions.",
-        "Use private settlement for large transfers or sensitive routing.",
-        "Escalate for a premium agent session if behavioral forensics are needed.",
-      ],
-    };
+    return buildPaidInferenceArtifact(session, {
+      role: "Clawd Research",
+      task:
+        "Produce a concise wallet brief for a Solana-native operator. Return JSON with keys summary, recommendations, and caveats. Do not claim on-chain facts you cannot verify from the prompt.",
+    });
   }
 
   if (session.productId === "prod-private-agent-session") {
-    return {
-      artifactType: "private-session",
-      deliveredBy: "Clawd Concierge",
-      generatedAt: new Date().toISOString(),
-      transcriptSummary: [
-        "Buyer requested confidential routing and research support.",
-        "Eliza qualified intent and handed off to Clawd.",
-        "Dexter prepared a paid session lane with policy-safe checkout.",
-      ],
-      nextActions: [
-        "Open a follow-up merchant lane for deeper routing.",
-        "Escalate to HERMES if custom settlement controls are needed.",
-      ],
-    };
+    return buildPaidInferenceArtifact(session, {
+      role: "Clawd Concierge",
+      task:
+        "Produce a premium private-session handoff note. Return JSON with keys transcriptSummary, nextActions, and escalationPath.",
+    });
   }
 
   return {
@@ -1251,14 +1298,14 @@ function buildLocalChallenge(payload: any, upstream: Response): any {
   };
 }
 
-function buildX402Fulfillment(session: X402Session): any {
+async function buildX402Fulfillment(session: X402Session): Promise<any> {
   const receiptFingerprint = crypto
     .createHash("sha256")
     .update(`${session.id}|${session.productId}|${session.paymentSignature || session.xPayment || ""}|${session.verifiedAt}`)
     .digest("hex")
     .slice(0, 16);
 
-  return {
+  const baseReceipt = {
     artifactType: "x402-receipt",
     deliveredBy: "x402wtf bridge",
     merchant: "openclawd-merchant",
@@ -1280,4 +1327,176 @@ function buildX402Fulfillment(session: X402Session): any {
     operatorNote:
       "This receipt is the durable record that the x402.wtf gateway accepted payment. Pair it with the on-chain transaction for full audit.",
   };
+
+  const fulfillment = await buildPaidInferenceArtifact(session, {
+    role: "Dexter + x402wtf bridge",
+    task:
+      "Produce a compact merchant fulfillment note for a paid x402 order. Return JSON with keys deliverySummary, merchantActions, and buyerFollowUp.",
+  });
+
+  return {
+    ...baseReceipt,
+    aiFulfillment: fulfillment,
+  };
 }
+
+async function buildPaidInferenceArtifact(
+  session: CheckoutSession | X402Session,
+  input: { role: string; task: string },
+): Promise<any> {
+  const provider = resolveInferenceProvider();
+  if (provider.name === "none") {
+    const artifact = {
+      artifactType: "ai-fulfillment-unavailable",
+      deliveredBy: input.role,
+      generatedAt: new Date().toISOString(),
+      error: "No inference provider is configured. Set OPENAI_API_KEY or GEMINI_API_KEY in storefront/.env.local.",
+    };
+    appendLedgerEvent("ai_fulfillment_failed", {
+      sessionId: session.id,
+      productId: session.productId,
+      provider: provider.name,
+      reason: "provider_not_configured",
+    });
+    return artifact;
+  }
+
+  try {
+    const prompt = [
+      "You are fulfilling a paid OpenClawd order.",
+      `Role: ${input.role}.`,
+      `Product: ${session.productTitle}.`,
+      `Amount: ${session.amount} ${session.asset}.`,
+      `Merchant path: ${session.merchantPath}.`,
+      `Task: ${input.task}`,
+      "Respond with valid JSON only.",
+    ].join("\n");
+
+    const result = provider.name === "openai" ? await runOpenAiInference(prompt) : await runGeminiInference(prompt);
+    const artifact = {
+      artifactType: "ai-fulfillment",
+      deliveredBy: input.role,
+      generatedAt: new Date().toISOString(),
+      provider: result.provider,
+      model: result.model,
+      content: result.content,
+      usage: result.usage,
+    };
+    appendLedgerEvent("ai_fulfillment_succeeded", {
+      sessionId: session.id,
+      productId: session.productId,
+      provider: result.provider,
+      model: result.model,
+    });
+    return artifact;
+  } catch (error) {
+    appendLedgerEvent("ai_fulfillment_failed", {
+      sessionId: session.id,
+      productId: session.productId,
+      provider: provider.name,
+      reason: String(error),
+    });
+    return {
+      artifactType: "ai-fulfillment-error",
+      deliveredBy: input.role,
+      generatedAt: new Date().toISOString(),
+      provider: provider.name,
+      error: String(error),
+    };
+  }
+}
+
+function resolveInferenceProvider(): { name: "openai" | "gemini" | "none"; key: string | null } {
+  if (hasRealValue(process.env.OPENAI_API_KEY)) {
+    return { name: "openai", key: process.env.OPENAI_API_KEY || null };
+  }
+  const geminiKey = resolveGeminiKey();
+  if (hasRealValue(geminiKey)) {
+    return { name: "gemini", key: geminiKey };
+  }
+  return { name: "none", key: null };
+}
+
+async function runOpenAiInference(prompt: string): Promise<{ provider: string; model: string; content: any; usage: any }> {
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: process.env.OPENCLAWD_OPENAI_MODEL || "gpt-4.1-mini",
+      input: prompt,
+      text: {
+        format: {
+          type: "json_object",
+        },
+      },
+    }),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(`openai_request_failed:${response.status}:${JSON.stringify(data)}`);
+  }
+  const outputText = typeof data.output_text === "string" ? data.output_text : "";
+  return {
+    provider: "openai",
+    model: data.model,
+    content: safeJsonParse(outputText) ?? { raw: outputText },
+    usage: data.usage ?? null,
+  };
+}
+
+async function runGeminiInference(prompt: string): Promise<{ provider: string; model: string; content: any; usage: any }> {
+  const geminiKey = resolveGeminiKey();
+  const response = await fetch(
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": geminiKey,
+      },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          responseMimeType: "application/json",
+        },
+      }),
+    },
+  );
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(`gemini_request_failed:${response.status}:${JSON.stringify(data)}`);
+  }
+  const text =
+    data?.candidates?.[0]?.content?.parts
+      ?.map((part: any) => part?.text)
+      .filter(Boolean)
+      .join("\n") || "";
+  return {
+    provider: "gemini",
+    model: "gemini-3-flash-preview",
+    content: safeJsonParse(text) ?? { raw: text },
+    usage: data?.usageMetadata ?? null,
+  };
+}
+
+type LedgerEventType =
+  | "checkout_session_created"
+  | "checkout_funded"
+  | "x402_challenged"
+  | "x402_verified"
+  | "ai_fulfillment_succeeded"
+  | "ai_fulfillment_failed";
+
+type CommerceLedger = {
+  version: number;
+  createdAt: string;
+  events: Array<{
+    id: string;
+    type: LedgerEventType;
+    at: string;
+    detail: Record<string, unknown>;
+  }>;
+};
