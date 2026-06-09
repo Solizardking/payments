@@ -678,7 +678,8 @@ app.post("/api/x402wtf/checkout", async (req, res) => {
     const upstreamJson = safeJsonParse(upstreamBody);
 
     const isChallenge = upstream.status === 402 || upstream.headers.get("x-payment") || upstreamJson?.x402;
-    if (!isChallenge && !upstream.ok) {
+    const upstreamBlocked = upstream.status === 403 || upstream.status === 503;
+    if (!isChallenge && !upstream.ok && !upstreamBlocked) {
       res.status(502).json({
         ok: false,
         error: "x402_challenge_failed",
@@ -689,6 +690,11 @@ app.post("/api/x402wtf/checkout", async (req, res) => {
     }
 
     const challenge = upstreamJson?.challenge ?? upstreamJson?.x402 ?? buildLocalChallenge(challengePayload, upstream);
+    const blockedBy = upstreamBlocked ? `cloudflare-${upstream.status}` : null;
+    if (upstreamBlocked) {
+      challenge.x402Fallback = true;
+      challenge.x402FallbackReason = `${blockedBy} from ${x402.endpoint}; serving local challenge so the buyer can still sign and verify the receipt flow.`;
+    }
     const session: X402Session = {
       id: `x402_${crypto.randomUUID().slice(0, 8)}`,
       productId: product.id,
