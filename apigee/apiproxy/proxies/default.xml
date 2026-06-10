@@ -45,6 +45,22 @@
       <Description>Bridge for x402.wtf agents catalog at /api/agents.</Description>
       <Condition>(proxy.pathsuffix MatchesPath "/x402/agents") and (request.verb = "GET")</Condition>
     </Flow>
+    <Flow name="OpenRouterInference">
+      <Description>Paid OpenRouter free-model inference lane for metered merchant fulfillment.</Description>
+      <Condition>(proxy.pathsuffix MatchesPath "/inference/openrouter/chat") and (request.verb = "POST")</Condition>
+    </Flow>
+    <Flow name="GrokSwarmInference">
+      <Description>Paid xAI Grok swarm text lane for Clawd agent orchestration.</Description>
+      <Condition>(proxy.pathsuffix MatchesPath "/inference/xai/chat") and (request.verb = "POST")</Condition>
+    </Flow>
+    <Flow name="GrokImagineInference">
+      <Description>Paid xAI Grok Imagine generation and image edit lane.</Description>
+      <Condition>(proxy.pathsuffix MatchesPath "/inference/xai/images/**") and (request.verb = "POST")</Condition>
+    </Flow>
+    <Flow name="OpenAIFallbackInference">
+      <Description>Paid OpenAI fallback fulfillment lane.</Description>
+      <Condition>(proxy.pathsuffix MatchesPath "/inference/openai/responses") and (request.verb = "POST")</Condition>
+    </Flow>
     <Flow name="Registry">
       <Condition>(proxy.pathsuffix MatchesPath "/registry/**")</Condition>
     </Flow>
@@ -76,6 +92,22 @@
   <RouteRule name="route-x402-agents">
     <Condition>proxy.pathsuffix MatchesPath "/x402/agents"</Condition>
     <TargetEndpoint>x402-agents</TargetEndpoint>
+  </RouteRule>
+  <RouteRule name="route-openrouter-chat">
+    <Condition>proxy.pathsuffix MatchesPath "/inference/openrouter/chat"</Condition>
+    <TargetEndpoint>openrouter-chat</TargetEndpoint>
+  </RouteRule>
+  <RouteRule name="route-xai-chat">
+    <Condition>proxy.pathsuffix MatchesPath "/inference/xai/chat"</Condition>
+    <TargetEndpoint>xai-chat</TargetEndpoint>
+  </RouteRule>
+  <RouteRule name="route-xai-images">
+    <Condition>proxy.pathsuffix MatchesPath "/inference/xai/images/**"</Condition>
+    <TargetEndpoint>xai-images</TargetEndpoint>
+  </RouteRule>
+  <RouteRule name="route-openai-responses">
+    <Condition>proxy.pathsuffix MatchesPath "/inference/openai/responses"</Condition>
+    <TargetEndpoint>openai-responses</TargetEndpoint>
   </RouteRule>
   <RouteRule name="route-default">
     <TargetEndpoint>default</TargetEndpoint>

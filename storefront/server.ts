@@ -55,20 +55,25 @@ app.get("/api/config", (_req, res) => {
 
   res.json({
     public: {
-      googleApiKey: process.env.GOOGLE_API_KEY || "",
-      moonPayMerchantId: process.env.MOONPAY_MERCHANT_ID || "",
-      moonPayWallet: process.env.MOONPAY_WALLET || "",
-      moonPayApiKey: process.env.MOONPAY_API_KEY || "",
-      merchantServer: process.env.MERCHANT_SERVER || "",
-      merchantPort: process.env.MERCHANT_PORT || "",
-      merchantBucket: process.env.MERCHANT_GOOGLE_CLOUD_BUCKET || "",
+      googleApiKey: publicValue(process.env.GOOGLE_API_KEY),
+      moonPayMerchantId: publicValue(process.env.MOONPAY_MERCHANT_ID),
+      moonPayWallet: publicValue(process.env.MOONPAY_WALLET),
+      moonPayApiKey: publicValue(process.env.MOONPAY_API_KEY),
+      merchantServer: publicValue(process.env.MERCHANT_SERVER),
+      merchantPort: publicValue(process.env.MERCHANT_PORT),
+      merchantBucket: publicValue(process.env.MERCHANT_GOOGLE_CLOUD_BUCKET),
     },
     guards: {
       secretsProtected: true,
-      googleKeyShouldBeRestricted: Boolean(process.env.GOOGLE_API_KEY),
+      googleKeyShouldBeRestricted: hasRealValue(process.env.GOOGLE_API_KEY),
       moonPaySecretsLoadedServerSide: merchantSecretsPresent,
       geminiServerSideEnabled: hasRealValue(geminiKey),
       heliusServerSideEnabled: hasRealValue(process.env.HELIUS_RPC_URL),
+      heliusWssServerSideEnabled: hasRealValue(process.env.HELIUS_WSS_URL),
+      heliusDevnetServerSideEnabled: hasRealValue(process.env.HELIUS_DEVNET_URL),
+      solanaRpcServerSideEnabled: hasRealValue(process.env.SOLANA_RPC_URL || process.env.RPC_URL),
+      fallbackRpcServerSideEnabled: hasRealValue(process.env.FALLBACK_RPC),
+      fallbackWssServerSideEnabled: hasRealValue(process.env.FALLBACK_WSS),
       openAiServerSideEnabled: hasRealValue(process.env.OPENAI_API_KEY),
       openRouterServerSideEnabled: hasRealValue(process.env.OPENROUTER_API_KEY),
       xaiServerSideEnabled: hasRealValue(process.env.XAI_API_KEY),
@@ -270,6 +275,7 @@ app.get("/api/products/:id", (req, res) => {
       recommendedProtocol: (product.protocols || [])[0] || "x402",
       amount: product.price?.amount || "0.10",
       asset: product.price?.asset || "USDC",
+      clawdPrice: product.clawdPrice || null,
     },
   });
 });
@@ -304,14 +310,17 @@ app.post("/api/checkout/session", (req, res) => {
     status: "quoted",
     createdAt: new Date().toISOString(),
     merchantPath: product.merchantPath,
-    narrative: buildSessionNarrative(product, protocol),
-    moonPayUrl: buildMoonPayUrl({
-      apiKey: process.env.MOONPAY_API_KEY || "",
-      merchantId: process.env.MOONPAY_MERCHANT_ID || "",
-      walletAddress: process.env.MOONPAY_WALLET || "",
-      amount,
-      email: buyerEmail,
-    }),
+    narrative: buildSessionNarrative(product, protocol, quote),
+    moonPayUrl:
+      asset === "USDC"
+        ? buildMoonPayUrl({
+            apiKey: process.env.MOONPAY_API_KEY || "",
+            merchantId: process.env.MOONPAY_MERCHANT_ID || "",
+            walletAddress: process.env.MOONPAY_WALLET || "",
+            amount,
+            email: buyerEmail,
+          })
+        : null,
     fulfillmentPreview: buildFulfillmentPreview(product),
   };
 
@@ -717,6 +726,7 @@ app.post("/api/ai/grok/image/edit", async (req, res) => {
 });
 
 app.get("/api/x402wtf/info", (_req, res) => {
+  const store = loadStoreContext();
   res.json({
     provider: "x402.wtf",
     mode: "real-store",
@@ -732,6 +742,10 @@ app.get("/api/x402wtf/info", (_req, res) => {
     clawd: "https://x402.wtf/api/clawd",
     publicKey: "8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump",
     settlementAsset: "USDC",
+    clawdSettlement: {
+      asset: "CLAWD",
+      mint: "8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump",
+    },
     currency: "USDC",
     network: "solana",
     storeOperatorWallet: process.env.X402_STORE_WALLET || "",
@@ -744,7 +758,7 @@ app.get("/api/x402wtf/info", (_req, res) => {
       checkoutPath: "/merchant/checkout",
       revalidateAfter: "2026-12-31T00:00:00Z",
     },
-    products: 8,
+    products: store.catalog.products?.length || 0,
     protocols: ["x402"],
   });
 });
@@ -775,9 +789,9 @@ app.get("/api/x402wtf/agents", async (_req, res) => {
       res.json({ ok: true, source: "x402.wtf", agents: data });
       return;
     }
-    res.status(upstream.status).json({ ok: false, error: "x402_agents_failed", status: upstream.status });
+    res.json({ ok: false, error: "x402_agents_failed", status: upstream.status, source: "x402.wtf-fallback", agents: [] });
   } catch (error) {
-    res.status(502).json({ ok: false, error: "x402_agents_unreachable", detail: String(error) });
+    res.json({ ok: false, error: "x402_agents_unreachable", detail: String(error), source: "x402.wtf-fallback", agents: [] });
   }
 });
 
@@ -973,11 +987,17 @@ app.get("/api/x402wtf/registry/register", async (_req, res) => {
     checkoutPath: store.catalog.merchant.checkoutPath,
     publicKey: "8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump",
     settlementAsset: "USDC",
+    supportedAssets: [
+      { asset: "USDC", network: "solana", mint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v" },
+      { asset: "CLAWD", network: "solana", mint: "8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump" },
+    ],
     network: "solana",
     products: store.catalog.products.map((product: any) => ({
       id: product.id,
       title: product.title,
       price: product.price,
+      clawdPrice: product.clawdPrice || null,
+      inference: product.inference || null,
       protocols: product.protocols,
       x402: product.x402,
     })),
@@ -1106,6 +1126,10 @@ function hasRealValue(value: string | undefined): boolean {
   if (!value) return false;
   const normalized = value.trim().toLowerCase();
   return normalized !== "" && normalized !== "replace_me" && normalized !== "missing";
+}
+
+function publicValue(value: string | undefined): string {
+  return hasRealValue(value) ? value || "" : "";
 }
 
 async function detectMoonPayCli(): Promise<{ installed: boolean; version: string | null }> {
@@ -1334,10 +1358,12 @@ function buildFulfillmentPreview(product: any): { title: string; bullets: string
   }
 }
 
-function buildSessionNarrative(product: any, protocol: string): string[] {
+function buildSessionNarrative(product: any, protocol: string, quote?: { amount: string; asset: string }): string[] {
+  const amount = quote?.amount || product.price.amount;
+  const asset = quote?.asset || product.price.asset;
   return [
     `Buyer selected ${product.title}.`,
-    `Dexter quoted ${product.price.amount} ${product.price.asset} over ${protocol}.`,
+    `Dexter quoted ${amount} ${asset} over ${protocol}.`,
     `Clawd reserved the fulfillment lane at ${product.merchantPath}.`,
     "HERMES is ready to own settlement escalation if payment needs intervention.",
   ];
@@ -1553,7 +1579,7 @@ function buildLocalChallenge(payload: any, upstream: Response): any {
     asset: payload.asset,
     amount: payload.amount,
     payTo: "8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump",
-    mint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+    mint: payload.settlementMint || "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
     merchant: payload.merchantId,
     product: payload.productId,
     challenge: payload.challenge,

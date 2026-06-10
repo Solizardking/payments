@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<TargetEndpoint name="xai-chat">
+  <Description>Target endpoint for paid Grok swarm text inference routed through https://api.x.ai/v1/chat/completions.</Description>
+  <HTTPTargetConnection>
+    <URL>https://api.x.ai/v1/chat/completions</URL>
+  </HTTPTargetConnection>
+  <PreFlow name="PreFlow">
+    <Request>
+      <Step>
+        <Name>AM-SetInferenceHeaders</Name>
+      </Step>
+    </Request>
+  </PreFlow>
+</TargetEndpoint>

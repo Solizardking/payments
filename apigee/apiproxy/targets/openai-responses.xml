@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<TargetEndpoint name="openai-responses">
+  <Description>Target endpoint for OpenAI fallback fulfillment routed through https://api.openai.com/v1/responses.</Description>
+  <HTTPTargetConnection>
+    <URL>https://api.openai.com/v1/responses</URL>
+  </HTTPTargetConnection>
+  <PreFlow name="PreFlow">
+    <Request>
+      <Step>
+        <Name>AM-SetInferenceHeaders</Name>
+      </Step>
+    </Request>
+  </PreFlow>
+</TargetEndpoint>

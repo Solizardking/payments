@@ -5,6 +5,7 @@
   <Policies>
     <Policy>AM-PrivateDefaults</Policy>
     <Policy>AM-SetX402Headers</Policy>
+    <Policy>AM-SetInferenceHeaders</Policy>
     <Policy>EV-VerifyApiKey</Policy>
     <Policy>JWT-ExtractAgentAssertion</Policy>
     <Policy>SA-StoreBurstControl</Policy>
@@ -22,6 +23,10 @@
     <TargetEndpoint>x402-registry</TargetEndpoint>
     <TargetEndpoint>x402-agent-chat</TargetEndpoint>
     <TargetEndpoint>x402-agents</TargetEndpoint>
+    <TargetEndpoint>openrouter-chat</TargetEndpoint>
+    <TargetEndpoint>xai-chat</TargetEndpoint>
+    <TargetEndpoint>xai-images</TargetEndpoint>
+    <TargetEndpoint>openai-responses</TargetEndpoint>
   </TargetEndpoints>
   <BasePaths>/openclawd/private-store</BasePaths>
 </APIProxy>

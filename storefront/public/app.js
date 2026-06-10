@@ -746,6 +746,22 @@ function renderX402CheckoutForm() {
   productSelect.innerHTML = (state.store.catalog.products || [])
     .map((product) => `<option value="${escapeHtml(product.id)}">${escapeHtml(product.title)} · ${escapeHtml(product.price.amount)} ${escapeHtml(product.price.asset)}</option>`)
     .join("");
+  productSelect.addEventListener("change", updateX402Assets);
+  updateX402Assets();
+}
+
+function updateX402Assets() {
+  const productId = document.getElementById("x402-product").value;
+  const product = state.store.catalog.products.find((entry) => entry.id === productId);
+  const assetSelect = document.getElementById("x402-asset");
+  if (!assetSelect || !product) return;
+  const options = [
+    { asset: product.price?.asset || "USDC", label: `${product.price?.amount || "0.10"} ${product.price?.asset || "USDC"}` },
+    ...(product.clawdPrice ? [{ asset: "CLAWD", label: `${product.clawdPrice.amount} CLAWD` }] : []),
+  ];
+  assetSelect.innerHTML = options
+    .map((option) => `<option value="${escapeHtml(option.asset)}">${escapeHtml(option.label)}</option>`)
+    .join("");
 }
 
 function bindX402() {
@@ -790,6 +806,7 @@ async function createX402Session() {
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       productId: document.getElementById("x402-product").value,
+      asset: document.getElementById("x402-asset").value,
       buyerWallet: document.getElementById("x402-buyer-wallet").value,
       buyerName: document.getElementById("x402-buyer-name").value,
       buyerEmail: document.getElementById("x402-buyer-email").value,
@@ -843,6 +860,7 @@ function renderX402Session() {
     ["Upstream Status", String(session.upstreamStatus)],
     ["Buyer Wallet", session.buyerWallet || "not provided"],
     ["Amount", `${session.amount} ${session.asset}`],
+    ...(session.settlementMint ? [["Mint", session.settlementMint]] : []),
     ...(session.narrative || []).map((line, index) => [`Step ${index + 1}`, line]),
   ];
   sessionBox.innerHTML = rows

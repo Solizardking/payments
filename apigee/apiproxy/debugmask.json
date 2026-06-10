@@ -7,6 +7,11 @@
     "$.signature",
     "$.mandate",
     "$.authorization",
+    "$.apiKey",
+    "$.prompt",
+    "$.messages",
+    "$.image",
+    "$.images",
     "$.x402.challenge",
     "$.x402.paymentSignature"
   ],
@@ -18,6 +23,14 @@
     "$.signature",
     "$.mandate",
     "$.authorization",
+    "$.apiKey",
+    "$.prompt",
+    "$.messages",
+    "$.image",
+    "$.images",
+    "$.output_text",
+    "$.choices",
+    "$.data",
     "$.x402.challenge",
     "$.x402.paymentSignature"
   ],
@@ -31,6 +44,11 @@
     "private.agent.jwt",
     "private.x402.payments",
     "private.x402.registry",
-    "private.x402.publicKey"
+    "private.x402.publicKey",
+    "private.inference.openrouterBase",
+    "private.inference.xaiBase",
+    "private.inference.openaiBase",
+    "request.header.authorization",
+    "request.header.x-openclawd-product-class"
   ]
 }

@@ -11,6 +11,8 @@ const GENERATED_DIR = join(ROOT, "generated");
 const STORE_MANIFEST = join(GENERATED_DIR, "openclawd.agent-store.json");
 
 loadEnvFile(join(dirname(__dirname), ".env.local"));
+loadEnvFile(join(ROOT, ".env.local"));
+loadEnvFile(join(ROOT, "storefront", ".env.local"));
 
 const CLAWD_MINT = "8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump";
 const OPENROUTER_DEFAULT_FREE_MODEL = process.env.OPENCLAWD_OPENROUTER_MODEL || "nvidia/nemotron-3-ultra-550b-a55b:free";

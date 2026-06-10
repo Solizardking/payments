@@ -131,6 +131,7 @@ type ValidationReport = {
 
 const ROOT = new URL(".", import.meta.url);
 loadEnvFile(new URL("./.env.local", ROOT));
+loadEnvFile(new URL("./storefront/.env.local", ROOT));
 const REGISTRY_PATH = new URL("./agents.json", ROOT);
 const CATALOG_PATH = new URL("./catalog.json", ROOT);
 const PRIVATE_PROXY_BUNDLE_PATH = process.env.OPENCLAWD_PRIVATE_PROXY_BUNDLE_PATH ?? "apigee/apiproxy";
@@ -173,8 +174,13 @@ const REQUIRED_APIGEE_FILES = [
   "targets/x402-registry.xml",
   "targets/x402-agent-chat.xml",
   "targets/x402-agents.xml",
+  "targets/openrouter-chat.xml",
+  "targets/xai-chat.xml",
+  "targets/xai-images.xml",
+  "targets/openai-responses.xml",
   "policies/AM-PrivateDefaults.xml",
   "policies/AM-SetX402Headers.xml",
+  "policies/AM-SetInferenceHeaders.xml",
   "policies/EV-VerifyApiKey.xml",
   "policies/JWT-ExtractAgentAssertion.xml",
   "policies/Q-StorePerAppMinute.xml",
@@ -207,6 +213,44 @@ const X402_ROUTE_MAP = [
     proxyPath: "/openclawd/private-store/x402/agents",
     targetEndpoint: "x402-agents",
     upstream: X402_AGENTS_CATALOG,
+  },
+];
+const INFERENCE_ROUTE_MAP = [
+  {
+    id: "openrouter-chat",
+    proxyPath: "/openclawd/private-store/inference/openrouter/chat",
+    targetEndpoint: "openrouter-chat",
+    upstream: `${OPENROUTER_BASE_URL}/chat/completions`,
+    provider: "openrouter",
+    model: OPENROUTER_FREE_MODEL,
+    paidAssetOptions: ["USDC", "CLAWD"],
+  },
+  {
+    id: "xai-chat",
+    proxyPath: "/openclawd/private-store/inference/xai/chat",
+    targetEndpoint: "xai-chat",
+    upstream: `${XAI_BASE_URL}/chat/completions`,
+    provider: "xai",
+    model: XAI_TEXT_MODEL,
+    paidAssetOptions: ["USDC", "CLAWD"],
+  },
+  {
+    id: "xai-images",
+    proxyPath: "/openclawd/private-store/inference/xai/images/**",
+    targetEndpoint: "xai-images",
+    upstream: `${XAI_BASE_URL}/images`,
+    provider: "xai",
+    model: XAI_IMAGE_MODEL,
+    paidAssetOptions: ["USDC", "CLAWD"],
+  },
+  {
+    id: "openai-responses",
+    proxyPath: "/openclawd/private-store/inference/openai/responses",
+    targetEndpoint: "openai-responses",
+    upstream: "https://api.openai.com/v1/responses",
+    provider: "openai",
+    model: OPENAI_MODEL,
+    paidAssetOptions: ["USDC", "CLAWD"],
   },
 ];
 
@@ -267,6 +311,33 @@ function hasRealValue(value: string | undefined): boolean {
   return normalized !== "" && normalized !== "replace_me" && normalized !== "missing";
 }
 
+function buildRpcCapabilities() {
+  return {
+    provider: "helius",
+    network: "solana-mainnet",
+    primaryHttpEnv: "HELIUS_RPC_URL",
+    primaryWssEnv: "HELIUS_WSS_URL",
+    devnetHttpEnv: "HELIUS_DEVNET_URL",
+    aliases: {
+      rpcUrlEnv: "RPC_URL",
+      solanaRpcUrlEnv: "SOLANA_RPC_URL",
+      nextPublicRpcUrlEnv: "NEXT_PUBLIC_RPC_URL",
+      fallbackRpcEnv: "FALLBACK_RPC",
+      fallbackWssEnv: "FALLBACK_WSS",
+    },
+    configured: {
+      heliusRpcUrl: hasRealValue(process.env.HELIUS_RPC_URL),
+      heliusWssUrl: hasRealValue(process.env.HELIUS_WSS_URL),
+      heliusDevnetUrl: hasRealValue(process.env.HELIUS_DEVNET_URL),
+      rpcUrl: hasRealValue(process.env.RPC_URL),
+      solanaRpcUrl: hasRealValue(process.env.SOLANA_RPC_URL),
+      nextPublicRpcUrl: hasRealValue(process.env.NEXT_PUBLIC_RPC_URL),
+      fallbackRpc: hasRealValue(process.env.FALLBACK_RPC),
+      fallbackWss: hasRealValue(process.env.FALLBACK_WSS),
+    },
+  };
+}
+
 function buildModelCapabilities() {
   return {
     activeProvider: process.env.OPENCLAWD_INFERENCE_PROVIDER ?? "auto",
@@ -299,6 +370,7 @@ function buildModelCapabilities() {
       },
     },
     fallbackOrder: ["openrouter", "xai", "openai"],
+    apigeeRoutes: INFERENCE_ROUTE_MAP,
     grokSwarm: [
       { lane: "orchestrator", provider: "xai", model: XAI_TEXT_MODEL, role: "Clawd/HERMES coordination" },
       { lane: "coding", provider: "xai", model: "grok-build-0.1", role: "gateway, Apigee, and storefront changes" },
@@ -460,6 +532,7 @@ function buildManifest(registry: Registry, agents: AgentRecord[], catalog: Catal
       paymentGatewayProvider: primaryGateway?.provider ?? "x402.wtf",
       settlementAsset: primaryGateway?.settlementAsset ?? "USDC",
       confidentialRelay: true,
+      rpc: buildRpcCapabilities(),
       facilitator: {
         gatewayRoute: "/facilitator/*",
         workerEntry: OPENCLAWD_GATEWAY_PATH,
@@ -552,6 +625,10 @@ function buildManifest(registry: Registry, agents: AgentRecord[], catalog: Catal
         { id: "x402-payments", type: "x402-payments", path: X402_PAYMENTS_ENDPOINT },
         { id: "x402-registry", type: "x402-registry", path: X402_REGISTRY_ENDPOINT },
         { id: "x402-agent-chat", type: "x402-agent-chat", path: X402_AGENT_CHAT_ENDPOINT },
+        { id: "openrouter-chat", type: "paid-inference", path: `${OPENROUTER_BASE_URL}/chat/completions` },
+        { id: "xai-chat", type: "paid-inference", path: `${XAI_BASE_URL}/chat/completions` },
+        { id: "xai-images", type: "paid-image-inference", path: `${XAI_BASE_URL}/images` },
+        { id: "openai-responses", type: "paid-inference-fallback", path: "https://api.openai.com/v1/responses" },
       ],
       workflows: [
         "customer -> apigee -> eliza -> clawd -> dexter -> hermes -> facilitator",
@@ -559,6 +636,7 @@ function buildManifest(registry: Registry, agents: AgentRecord[], catalog: Catal
         "ralph premium inventory -> catalog offer -> clawd storefront routing",
         "buyer -> x402.wtf/payments -> x402wtf bridge -> dexter fulfillment -> apigee receipt",
         "x402wtf registers the merchant on x402.wtf/agents/registry on boot and re-registers on config change",
+        "buyer -> x402 challenge -> Apigee inference route -> OpenRouter/Grok/OpenAI fulfillment -> CLAWD or USDC receipt",
       ],
     },
     agents: agents.map((agent) => ({
@@ -683,6 +761,18 @@ function buildValidationReport(): ValidationReport {
       errors.push(`proxy descriptor missing target endpoint ${route.targetEndpoint}`);
     }
   }
+  for (const route of INFERENCE_ROUTE_MAP) {
+    const targetPath = join(APIGEE_PROXY_ROOT, "targets", `${route.targetEndpoint}.xml`);
+    if (!fileContains(targetPath, route.upstream)) {
+      errors.push(`${route.targetEndpoint} target does not point at ${route.upstream}`);
+    }
+    if (!proxy.includes(`<TargetEndpoint>${route.targetEndpoint}</TargetEndpoint>`)) {
+      errors.push(`proxy route missing inference target endpoint ${route.targetEndpoint}`);
+    }
+    if (!descriptor.includes(`<TargetEndpoint>${route.targetEndpoint}</TargetEndpoint>`)) {
+      errors.push(`proxy descriptor missing inference target endpoint ${route.targetEndpoint}`);
+    }
+  }
 
   if (manifest.x402?.paymentGateway !== X402_PAYMENTS_ENDPOINT) {
     errors.push(`manifest x402 payment gateway is ${manifest.x402?.paymentGateway}, expected ${X402_PAYMENTS_ENDPOINT}`);
@@ -707,17 +797,46 @@ function buildValidationReport(): ValidationReport {
   if (manifest.ai?.providers?.xai?.imageModel !== XAI_IMAGE_MODEL) {
     errors.push(`manifest xAI image model is ${manifest.ai?.providers?.xai?.imageModel}, expected ${XAI_IMAGE_MODEL}`);
   }
+  if (!Array.isArray(manifest.ai?.apigeeRoutes) || manifest.ai.apigeeRoutes.length !== INFERENCE_ROUTE_MAP.length) {
+    errors.push(`manifest ai.apigeeRoutes should contain ${INFERENCE_ROUTE_MAP.length} inference routes`);
+  }
+  const inferenceProducts = manifest.products?.filter((product: any) => product.category === "inference") ?? [];
+  if (inferenceProducts.length < 2) {
+    errors.push("manifest should include paid inference products");
+  }
+  const clawdPricedProducts = manifest.products?.filter((product: any) => product.clawdPrice?.asset === "CLAWD") ?? [];
+  if (clawdPricedProducts.length < 4) {
+    errors.push("manifest should include CLAWD-priced products");
+  }
   if (basename(session.manifest ?? "") !== "openclawd.agent-store.json") {
     errors.push(`session manifest pointer is not openclawd.agent-store.json: ${session.manifest}`);
   }
   if (!Array.isArray(truandFleet.roles) || truandFleet.roles.length === 0) {
     errors.push("truand fleet has no roles");
   }
+  if (manifest.commerce?.rpc?.provider !== "helius") {
+    errors.push("manifest commerce.rpc provider should be helius");
+  }
+  if (!manifest.commerce?.rpc?.configured?.heliusRpcUrl) {
+    errors.push("HELIUS_RPC_URL is not configured in manifest commerce.rpc");
+  }
+  if (!manifest.commerce?.rpc?.configured?.heliusWssUrl) {
+    errors.push("HELIUS_WSS_URL is not configured in manifest commerce.rpc");
+  }
   if (!debugmask.variables?.includes("private.payment.signature")) {
     errors.push("debug mask does not include private.payment.signature");
   }
   if (!debugmask.variables?.includes("private.agent.jwt")) {
     errors.push("debug mask does not include private.agent.jwt");
+  }
+  if (!debugmask.variables?.includes("private.inference.openrouterBase")) {
+    errors.push("debug mask does not include private.inference.openrouterBase");
+  }
+  if (!debugmask.variables?.includes("private.inference.xaiBase")) {
+    errors.push("debug mask does not include private.inference.xaiBase");
+  }
+  if (!debugmask.requestJSONPaths?.includes("$.messages")) {
+    errors.push("debug mask does not include inference messages");
   }
 
   const defaultTarget = readFileSync(join(APIGEE_PROXY_ROOT, "targets", "default.xml"), "utf8");
@@ -781,6 +900,7 @@ function buildApigeeIntegration() {
         purpose: "private OpenClawd gateway for registry, agents, A2A, and facilitator routes",
       },
       x402Routes: X402_ROUTE_MAP,
+      inferenceRoutes: INFERENCE_ROUTE_MAP,
       policies: REQUIRED_APIGEE_FILES.filter((entry) => entry.startsWith("policies/")).map((entry) =>
         entry.replace("policies/", "").replace(".xml", ""),
       ),
@@ -806,6 +926,7 @@ function buildApigeeIntegration() {
     },
     x402: manifest.x402,
     ai: manifest.ai,
+    rpc: manifest.commerce?.rpc,
     validation,
     deployChecklist: [
       "Replace the default target URL with the private OpenClawd gateway URL for the Apigee environment.",

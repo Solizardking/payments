@@ -8,7 +8,7 @@ Design goals:
 - Apigee org and runtime are isolated with VPC Service Controls.
 - Only approved apps and agents can call the merchant APIs.
 - Sensitive headers, request payloads, and receipts are masked in debug.
-- x402 paid challenges, agent registry, and agent chat traffic are routed to https://x402.wtf via dedicated targets.
+- x402 paid challenges, agent registry, agent chat, and paid inference traffic are routed through dedicated targets.
 - Target routing to the OpenClawd gateway happens through controlled proxy flows.
 
 Recommended production shape:
@@ -19,7 +19,8 @@ Recommended production shape:
 4. Debug masking and `private.` flow variables for secrets and confidential payment material.
 5. Apigee quotas, spike arrest, and per-product authorization in front of the x402 gateway.
 6. `AM-SetX402Headers` stamps every x402-bound request with merchant identity, public key, and network.
-7. `RF-X402Challenge` returns a structured 402 challenge when the upstream x402 endpoint demands payment.
+7. `AM-SetInferenceHeaders` stamps paid inference requests with merchant identity and product-class metadata.
+8. `RF-X402Challenge` returns a structured 402 challenge when the upstream x402 endpoint demands payment.
 
 Bundle contents:
 
@@ -30,8 +31,13 @@ Bundle contents:
 - `apiproxy/targets/x402-registry.xml` — lane for https://x402.wtf/agents/registry
 - `apiproxy/targets/x402-agent-chat.xml` — lane for https://x402.wtf/api/x402/agent/chat
 - `apiproxy/targets/x402-agents.xml` — lane for https://x402.wtf/api/agents
+- `apiproxy/targets/openrouter-chat.xml` — paid OpenRouter chat/completions inference lane
+- `apiproxy/targets/xai-chat.xml` — paid Grok swarm chat/completions lane
+- `apiproxy/targets/xai-images.xml` — paid Grok Imagine image generation/editing lane
+- `apiproxy/targets/openai-responses.xml` — paid OpenAI fallback responses lane
 - `apiproxy/policies/AM-PrivateDefaults.xml` — private flow variables and confidential headers
 - `apiproxy/policies/AM-SetX402Headers.xml` — stamps merchant identity on every x402 request
+- `apiproxy/policies/AM-SetInferenceHeaders.xml` — stamps merchant identity on every inference request
 - `apiproxy/policies/EV-VerifyApiKey.xml` — API key verification
 - `apiproxy/policies/JWT-ExtractAgentAssertion.xml` — agent JWT extraction
 - `apiproxy/policies/Q-StorePerAppMinute.xml` — per-app quota
@@ -55,9 +61,10 @@ npm run apigee:validate
 - the latest `generated/sessions/store-*.json` file, or `OPENCLAWD_SESSION_PATH` when set
 - `generated/truand-fleet.json`
 - the four x402.wtf target endpoints
+- the four paid inference target endpoints
 - the proxy base path `/openclawd/private-store`
 
-`npm run apigee:validate` checks required bundle files, parses generated JSON, validates XML with `xmllint`, verifies x402 route targets against the generated store manifest, and confirms debug masking covers the private payment and agent variables.
+`npm run apigee:validate` checks required bundle files, parses generated JSON, validates XML with `xmllint`, verifies x402 and inference route targets against the generated store manifest, confirms the store includes paid inference and CLAWD-priced products, and confirms debug masking covers private payment, agent, prompt, image, and provider variables.
 
 This is a repo-local scaffold, not a fully provisioned Apigee org. You still need to deploy it into your Apigee environment and connect the target host and ingress privately. x402.wtf is a public paid provider; keep all operator secrets inside `private.*` variables and use debug masking.
 

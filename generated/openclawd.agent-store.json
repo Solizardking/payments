@@ -27,13 +27,13 @@
     "providers": {
       "openai": {
         "configuredEnv": "OPENAI_API_KEY",
-        "configured": false,
+        "configured": true,
         "model": "gpt-4.1-mini",
         "endpoint": "https://api.openai.com/v1/responses"
       },
       "openrouter": {
         "configuredEnv": "OPENROUTER_API_KEY",
-        "configured": false,
+        "configured": true,
         "baseUrl": "https://openrouter.ai/api/v1",
         "endpoint": "https://openrouter.ai/api/v1/chat/completions",
         "defaultFreeModel": "nvidia/nemotron-3-ultra-550b-a55b:free",
@@ -42,7 +42,7 @@
       },
       "xai": {
         "configuredEnv": "XAI_API_KEY",
-        "configured": false,
+        "configured": true,
         "baseUrl": "https://api.x.ai/v1",
         "textModel": "grok-4.3",
         "chatEndpoint": "https://api.x.ai/v1/chat/completions",
@@ -56,6 +56,56 @@
       "openrouter",
       "xai",
       "openai"
+    ],
+    "apigeeRoutes": [
+      {
+        "id": "openrouter-chat",
+        "proxyPath": "/openclawd/private-store/inference/openrouter/chat",
+        "targetEndpoint": "openrouter-chat",
+        "upstream": "https://openrouter.ai/api/v1/chat/completions",
+        "provider": "openrouter",
+        "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "paidAssetOptions": [
+          "USDC",
+          "CLAWD"
+        ]
+      },
+      {
+        "id": "xai-chat",
+        "proxyPath": "/openclawd/private-store/inference/xai/chat",
+        "targetEndpoint": "xai-chat",
+        "upstream": "https://api.x.ai/v1/chat/completions",
+        "provider": "xai",
+        "model": "grok-4.3",
+        "paidAssetOptions": [
+          "USDC",
+          "CLAWD"
+        ]
+      },
+      {
+        "id": "xai-images",
+        "proxyPath": "/openclawd/private-store/inference/xai/images/**",
+        "targetEndpoint": "xai-images",
+        "upstream": "https://api.x.ai/v1/images",
+        "provider": "xai",
+        "model": "grok-imagine-image-quality",
+        "paidAssetOptions": [
+          "USDC",
+          "CLAWD"
+        ]
+      },
+      {
+        "id": "openai-responses",
+        "proxyPath": "/openclawd/private-store/inference/openai/responses",
+        "targetEndpoint": "openai-responses",
+        "upstream": "https://api.openai.com/v1/responses",
+        "provider": "openai",
+        "model": "gpt-4.1-mini",
+        "paidAssetOptions": [
+          "USDC",
+          "CLAWD"
+        ]
+      }
     ],
     "grokSwarm": [
       {
@@ -120,6 +170,30 @@
     "paymentGatewayProvider": "x402.wtf",
     "settlementAsset": "USDC",
     "confidentialRelay": true,
+    "rpc": {
+      "provider": "helius",
+      "network": "solana-mainnet",
+      "primaryHttpEnv": "HELIUS_RPC_URL",
+      "primaryWssEnv": "HELIUS_WSS_URL",
+      "devnetHttpEnv": "HELIUS_DEVNET_URL",
+      "aliases": {
+        "rpcUrlEnv": "RPC_URL",
+        "solanaRpcUrlEnv": "SOLANA_RPC_URL",
+        "nextPublicRpcUrlEnv": "NEXT_PUBLIC_RPC_URL",
+        "fallbackRpcEnv": "FALLBACK_RPC",
+        "fallbackWssEnv": "FALLBACK_WSS"
+      },
+      "configured": {
+        "heliusRpcUrl": true,
+        "heliusWssUrl": true,
+        "heliusDevnetUrl": true,
+        "rpcUrl": true,
+        "solanaRpcUrl": true,
+        "nextPublicRpcUrl": true,
+        "fallbackRpc": true,
+        "fallbackWss": true
+      }
+    },
     "facilitator": {
       "gatewayRoute": "/facilitator/*",
       "workerEntry": "private-gateway/x402/worker/src/index.ts",
@@ -291,6 +365,26 @@
         "id": "x402-agent-chat",
         "type": "x402-agent-chat",
         "path": "https://x402.wtf/api/x402/agent/chat"
+      },
+      {
+        "id": "openrouter-chat",
+        "type": "paid-inference",
+        "path": "https://openrouter.ai/api/v1/chat/completions"
+      },
+      {
+        "id": "xai-chat",
+        "type": "paid-inference",
+        "path": "https://api.x.ai/v1/chat/completions"
+      },
+      {
+        "id": "xai-images",
+        "type": "paid-image-inference",
+        "path": "https://api.x.ai/v1/images"
+      },
+      {
+        "id": "openai-responses",
+        "type": "paid-inference-fallback",
+        "path": "https://api.openai.com/v1/responses"
       }
     ],
     "workflows": [
@@ -298,7 +392,8 @@
       "agent buyer -> gateway /a2a -> hermes settlement -> dexter fulfillment",
       "ralph premium inventory -> catalog offer -> clawd storefront routing",
       "buyer -> x402.wtf/payments -> x402wtf bridge -> dexter fulfillment -> apigee receipt",
-      "x402wtf registers the merchant on x402.wtf/agents/registry on boot and re-registers on config change"
+      "x402wtf registers the merchant on x402.wtf/agents/registry on boot and re-registers on config change",
+      "buyer -> x402 challenge -> Apigee inference route -> OpenRouter/Grok/OpenAI fulfillment -> CLAWD or USDC receipt"
     ]
   },
   "agents": [
@@ -345,7 +440,7 @@
           "cross-agent escalation"
         ]
       },
-      "prompt": "Operate the OpenClawd merchant store 24/7 as the master orchestrator. Keep the storefront live on x402.wtf, coordinate admitted agents, route high-intent buyers, and escalate payment or policy issues to HERMES. Featured offers: Dark Ralph OODA Signal Tick (0.05 USDC via x402); Dexter Merchant Checkout Session (0.10 USDC via x402); Eliza Concierge Routing (0.02 USDC via x402); x402.wtf Payment Bridge (0.01 USDC via x402). All paid traffic is routed through https://x402.wtf/payments. The store is registered at https://x402.wtf/agents/registry and uses 8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump as the public identity."
+      "prompt": "Operate the OpenClawd merchant store 24/7 as the master orchestrator. Keep the storefront live on x402.wtf, coordinate admitted agents, route high-intent buyers, and escalate payment or policy issues to HERMES. Featured offers: Dark Ralph OODA Signal Tick (0.05 USDC via x402); Dexter Merchant Checkout Session (0.10 USDC via x402); Eliza Concierge Routing (0.02 USDC via x402); x402.wtf Payment Bridge (0.01 USDC via x402); OpenRouter Free-Model Inference (0.03 USDC / 6.942 CLAWD via x402); Grok Swarm Agent Session (0.42 USDC / 42 CLAWD via x402). All paid traffic is routed through https://x402.wtf/payments. The store is registered at https://x402.wtf/agents/registry and uses 8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump as the public identity."
     },
     {
       "id": "ralph",
@@ -555,6 +650,11 @@
       "description": "Pay-per-request API products routed through x402.wtf, pay.sh, and MPP."
     },
     {
+      "id": "inference",
+      "label": "Inference Market",
+      "description": "OpenRouter, Grok, OpenAI, and Grok Imagine inference products sold through x402 with USDC and CLAWD pricing."
+    },
+    {
       "id": "agent-services",
       "label": "Agent Services",
       "description": "Autonomous operator tasks offered by CLAWD agents and merchant agents."
@@ -599,9 +699,167 @@
       "price": "0.01 USDC",
       "protocol": "x402",
       "endpoint": "https://x402.wtf/payments"
+    },
+    {
+      "id": "openrouter-free-inference",
+      "category": "inference",
+      "label": "OpenRouter Free-Model Inference",
+      "price": "0.03 USDC / 6.942 CLAWD",
+      "protocol": "x402",
+      "endpoint": "/api/ai/providers"
+    },
+    {
+      "id": "grok-swarm",
+      "category": "agent-services",
+      "label": "Grok Swarm Agent Session",
+      "price": "0.42 USDC / 42 CLAWD",
+      "protocol": "x402",
+      "endpoint": "/api/ai/providers"
     }
   ],
   "products": [
+    {
+      "id": "prod-openrouter-free-inference",
+      "title": "OpenRouter Free-Model Inference",
+      "category": "inference",
+      "description": "Metered inference fulfillment through OpenRouter's discovered free-model pool, defaulting to the configured :free model and falling back as availability rotates.",
+      "price": {
+        "amount": "0.03",
+        "asset": "USDC"
+      },
+      "clawdPrice": {
+        "amount": "6.9420",
+        "asset": "CLAWD",
+        "mint": "8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump"
+      },
+      "protocols": [
+        "x402",
+        "ap2",
+        "paysh"
+      ],
+      "merchantPath": "/store/inference/openrouter-free",
+      "inference": {
+        "provider": "openrouter",
+        "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "endpoint": "/api/ai/providers",
+        "metering": "per-fulfillment"
+      },
+      "x402": {
+        "endpoint": "https://x402.wtf/payments",
+        "challenge": "/x402/inference/openrouter-free",
+        "method": "POST"
+      },
+      "digital": true,
+      "googleMerchant": {
+        "condition": "new",
+        "availability": "in_stock"
+      }
+    },
+    {
+      "id": "prod-grok-swarm-session",
+      "title": "Grok Swarm Agent Session",
+      "category": "agent-services",
+      "description": "A paid Grok-backed swarm lane for Clawd/HERMES orchestration, Grok Build implementation planning, and x402 merchant routing.",
+      "price": {
+        "amount": "0.42",
+        "asset": "USDC"
+      },
+      "clawdPrice": {
+        "amount": "42.0000",
+        "asset": "CLAWD",
+        "mint": "8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump"
+      },
+      "protocols": [
+        "x402",
+        "mpp",
+        "ap2"
+      ],
+      "merchantPath": "/store/agents/grok-swarm",
+      "inference": {
+        "provider": "xai",
+        "model": "grok-4.3",
+        "endpoint": "/api/ai/providers",
+        "metering": "per-session"
+      },
+      "x402": {
+        "endpoint": "https://x402.wtf/payments",
+        "challenge": "/x402/agents/grok-swarm",
+        "method": "POST"
+      },
+      "digital": true,
+      "googleMerchant": {
+        "condition": "new",
+        "availability": "in_stock"
+      }
+    },
+    {
+      "id": "prod-grok-imagine-edit",
+      "title": "Grok Imagine Image Edit",
+      "category": "inference",
+      "description": "JSON-native Grok Imagine image generation, style transfer, and up-to-three-source image editing through the xAI image API.",
+      "price": {
+        "amount": "0.18",
+        "asset": "USDC"
+      },
+      "clawdPrice": {
+        "amount": "18.0000",
+        "asset": "CLAWD",
+        "mint": "8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump"
+      },
+      "protocols": [
+        "x402",
+        "solana-pay",
+        "ap2"
+      ],
+      "merchantPath": "/store/inference/grok-imagine",
+      "inference": {
+        "provider": "xai",
+        "model": "grok-imagine-image-quality",
+        "endpoint": "/api/ai/grok/image/edit",
+        "metering": "per-image"
+      },
+      "x402": {
+        "endpoint": "https://x402.wtf/payments",
+        "challenge": "/x402/inference/grok-imagine",
+        "method": "POST"
+      },
+      "digital": true,
+      "googleMerchant": {
+        "condition": "new",
+        "availability": "in_stock"
+      }
+    },
+    {
+      "id": "prod-clawd-agent-seat",
+      "title": "CLAWD Agent Seat",
+      "category": "agent-services",
+      "description": "Token-gated access to Clawd, Dexter, Eliza, HERMES, Ralph, and x402wtf agent lanes with USDC checkout or CLAWD-denominated entry.",
+      "price": {
+        "amount": "0.69",
+        "asset": "USDC"
+      },
+      "clawdPrice": {
+        "amount": "69.4200",
+        "asset": "CLAWD",
+        "mint": "8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump"
+      },
+      "protocols": [
+        "x402",
+        "mpp",
+        "solana-pay"
+      ],
+      "merchantPath": "/store/agents/clawd-seat",
+      "x402": {
+        "endpoint": "https://x402.wtf/payments",
+        "challenge": "/x402/agents/clawd-seat",
+        "method": "POST"
+      },
+      "digital": true,
+      "googleMerchant": {
+        "condition": "new",
+        "availability": "in_stock"
+      }
+    },
     {
       "id": "prod-ooda-signal-pack",
       "title": "OODA Signal Pack",

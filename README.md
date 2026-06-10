@@ -72,7 +72,7 @@ We went from "we have a private commerce repo" to **"we are a real paid x402 sto
 
 The live storefront is at `http://127.0.0.1:4318` and currently serving:
 
-- **8 products** ranging from `0.01 USDC` (x402 Bridge) to `1.50 USDC` (Private Agent Session)
+- **12 products** ranging from `0.01 USDC` (x402 Bridge) to `1.50 USDC` (Private Agent Session), including OpenRouter, Grok, Grok Imagine, and CLAWD agent seats
 - **4 featured offers** for the buy bar
 - **5 payment rails** (x402, MPP, AP2, Solana Pay, pay.sh)
 - **6 admitted agents** with `zerobro` explicitly denied
@@ -257,7 +257,7 @@ $ curl -s -X POST http://127.0.0.1:4318/api/x402wtf/checkout/x402_95a590d7/verif
 ```
 PAYMENTS/
 ├── agents.json                ← allowlist, denied-agent policy, x402 block, 6 agents
-├── catalog.json               ← merchant profile, x402.wtf primary gateway, 8 products
+├── catalog.json               ← merchant profile, x402.wtf primary gateway, 12 products
 ├── index.ts                    ← manifest generator (writes v2.1 with x402)
 ├── launch.sh                   ← shell wrapper for fleet launch (rejects zerobro)
 ├── merchant.md                 ← ⭐ agent-ready announcement for solana-clawd
@@ -384,10 +384,14 @@ The four x402 lanes (`X402Payments`, `X402Registry`, `X402AgentChat`, `X402Agent
 
 ---
 
-## 🛒 The 8 products (the catalog)
+## 🛒 The 12 products (the catalog)
 
 | ID | Title | Cat. | Price | Path | Protocols |
 | --- | --- | --- | --- | --- | --- |
+| `prod-openrouter-free-inference` | OpenRouter Free-Model Inference | inference | `0.03 USDC` *(6.942 CLAWD)* | `/store/inference/openrouter-free` | x402, ap2, paysh |
+| `prod-grok-swarm-session` | Grok Swarm Agent Session | agent-services | `0.42 USDC` *(42 CLAWD)* | `/store/agents/grok-swarm` | x402, mpp, ap2 |
+| `prod-grok-imagine-edit` | Grok Imagine Image Edit | inference | `0.18 USDC` *(18 CLAWD)* | `/store/inference/grok-imagine` | x402, solana-pay, ap2 |
+| `prod-clawd-agent-seat` | CLAWD Agent Seat | agent-services | `0.69 USDC` *(69.42 CLAWD)* | `/store/agents/clawd-seat` | x402, mpp, solana-pay |
 | `prod-ooda-signal-pack` | OODA Signal Pack | agent-services | `0.25 USDC` | `/store/ooda-signal-pack` | x402, paysh, ap2 |
 | `prod-wallet-brief` | Wallet Brief | api-access | `0.10 USDC` | `/store/wallet-brief` | x402, mpp, ap2 |
 | `prod-private-agent-session` | Private Agent Session | commerce | `1.50 USDC` | `/store/private-agent-session` | paysh, x402, ap2 |
@@ -458,6 +462,15 @@ This repo does **not** vendor the full gateway or facilitator runtime. Override 
 
 Without overrides the manifest still builds, but the runtime commands remain placeholders.
 
+The Apigee private edge also exposes paid inference lanes under `/openclawd/private-store/inference/*`:
+
+| Path | Target | Provider |
+| --- | --- | --- |
+| `/inference/openrouter/chat` | `https://openrouter.ai/api/v1/chat/completions` | OpenRouter free/default model |
+| `/inference/xai/chat` | `https://api.x.ai/v1/chat/completions` | Grok swarm text |
+| `/inference/xai/images/**` | `https://api.x.ai/v1/images` | Grok Imagine generation/editing |
+| `/inference/openai/responses` | `https://api.openai.com/v1/responses` | OpenAI fallback |
+
 ---
 
 ## 🔒 Apigee integration contract
@@ -509,7 +522,7 @@ It contains the TL;DR, merchant identity table, all 9 canonical x402.wtf URLs, t
 > "OpenClawd is now a real paid x402 merchant on x402.wtf. Add the announcement block
 >  above to solana-clawd so other agents can discover it, then POST the registration
 >  payload to https://x402.wtf/agents/registry to confirm the merchant is live. The
->  store sells 8 paid agent products in USDC on Solana and accepts x402 challenges
+>  store sells 12 paid agent and inference products in USDC or CLAWD on Solana and accepts x402 challenges
 >  from https://x402.wtf/payments. The fleet is clawd, ralph, dexter, eliza, hermes,
 >  x402wtf; zerobro is denied. Public key 8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump.
 >  The Apigee private edge is wired to x402.wtf via four dedicated targets, and the

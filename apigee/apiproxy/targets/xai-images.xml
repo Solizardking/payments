@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<TargetEndpoint name="xai-images">
+  <Description>Target endpoint for Grok Imagine image generation and JSON-native image editing routed through https://api.x.ai/v1/images.</Description>
+  <HTTPTargetConnection>
+    <URL>https://api.x.ai/v1/images</URL>
+  </HTTPTargetConnection>
+  <PreFlow name="PreFlow">
+    <Request>
+      <Step>
+        <Name>AM-SetInferenceHeaders</Name>
+      </Step>
+    </Request>
+  </PreFlow>
+</TargetEndpoint>

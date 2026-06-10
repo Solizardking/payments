@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "generatedAt": "2026-06-10T01:50:29.000Z",
+  "generatedAt": "2026-06-10T02:19:32.253Z",
   "status": "ready-for-private-apigee-deploy",
   "store": {
     "id": "universal-autonomous-commerce",
@@ -54,9 +54,60 @@
         "upstream": "https://x402.wtf/api/agents"
       }
     ],
+    "inferenceRoutes": [
+      {
+        "id": "openrouter-chat",
+        "proxyPath": "/openclawd/private-store/inference/openrouter/chat",
+        "targetEndpoint": "openrouter-chat",
+        "upstream": "https://openrouter.ai/api/v1/chat/completions",
+        "provider": "openrouter",
+        "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "paidAssetOptions": [
+          "USDC",
+          "CLAWD"
+        ]
+      },
+      {
+        "id": "xai-chat",
+        "proxyPath": "/openclawd/private-store/inference/xai/chat",
+        "targetEndpoint": "xai-chat",
+        "upstream": "https://api.x.ai/v1/chat/completions",
+        "provider": "xai",
+        "model": "grok-4.3",
+        "paidAssetOptions": [
+          "USDC",
+          "CLAWD"
+        ]
+      },
+      {
+        "id": "xai-images",
+        "proxyPath": "/openclawd/private-store/inference/xai/images/**",
+        "targetEndpoint": "xai-images",
+        "upstream": "https://api.x.ai/v1/images",
+        "provider": "xai",
+        "model": "grok-imagine-image-quality",
+        "paidAssetOptions": [
+          "USDC",
+          "CLAWD"
+        ]
+      },
+      {
+        "id": "openai-responses",
+        "proxyPath": "/openclawd/private-store/inference/openai/responses",
+        "targetEndpoint": "openai-responses",
+        "upstream": "https://api.openai.com/v1/responses",
+        "provider": "openai",
+        "model": "gpt-4.1-mini",
+        "paidAssetOptions": [
+          "USDC",
+          "CLAWD"
+        ]
+      }
+    ],
     "policies": [
       "AM-PrivateDefaults",
       "AM-SetX402Headers",
+      "AM-SetInferenceHeaders",
       "EV-VerifyApiKey",
       "JWT-ExtractAgentAssertion",
       "Q-StorePerAppMinute",
@@ -137,13 +188,13 @@
     "providers": {
       "openai": {
         "configuredEnv": "OPENAI_API_KEY",
-        "configured": false,
+        "configured": true,
         "model": "gpt-4.1-mini",
         "endpoint": "https://api.openai.com/v1/responses"
       },
       "openrouter": {
         "configuredEnv": "OPENROUTER_API_KEY",
-        "configured": false,
+        "configured": true,
         "baseUrl": "https://openrouter.ai/api/v1",
         "endpoint": "https://openrouter.ai/api/v1/chat/completions",
         "defaultFreeModel": "nvidia/nemotron-3-ultra-550b-a55b:free",
@@ -152,7 +203,7 @@
       },
       "xai": {
         "configuredEnv": "XAI_API_KEY",
-        "configured": false,
+        "configured": true,
         "baseUrl": "https://api.x.ai/v1",
         "textModel": "grok-4.3",
         "chatEndpoint": "https://api.x.ai/v1/chat/completions",
@@ -166,6 +217,56 @@
       "openrouter",
       "xai",
       "openai"
+    ],
+    "apigeeRoutes": [
+      {
+        "id": "openrouter-chat",
+        "proxyPath": "/openclawd/private-store/inference/openrouter/chat",
+        "targetEndpoint": "openrouter-chat",
+        "upstream": "https://openrouter.ai/api/v1/chat/completions",
+        "provider": "openrouter",
+        "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "paidAssetOptions": [
+          "USDC",
+          "CLAWD"
+        ]
+      },
+      {
+        "id": "xai-chat",
+        "proxyPath": "/openclawd/private-store/inference/xai/chat",
+        "targetEndpoint": "xai-chat",
+        "upstream": "https://api.x.ai/v1/chat/completions",
+        "provider": "xai",
+        "model": "grok-4.3",
+        "paidAssetOptions": [
+          "USDC",
+          "CLAWD"
+        ]
+      },
+      {
+        "id": "xai-images",
+        "proxyPath": "/openclawd/private-store/inference/xai/images/**",
+        "targetEndpoint": "xai-images",
+        "upstream": "https://api.x.ai/v1/images",
+        "provider": "xai",
+        "model": "grok-imagine-image-quality",
+        "paidAssetOptions": [
+          "USDC",
+          "CLAWD"
+        ]
+      },
+      {
+        "id": "openai-responses",
+        "proxyPath": "/openclawd/private-store/inference/openai/responses",
+        "targetEndpoint": "openai-responses",
+        "upstream": "https://api.openai.com/v1/responses",
+        "provider": "openai",
+        "model": "gpt-4.1-mini",
+        "paidAssetOptions": [
+          "USDC",
+          "CLAWD"
+        ]
+      }
     ],
     "grokSwarm": [
       {
@@ -194,16 +295,35 @@
       }
     ]
   },
+  "rpc": {
+    "provider": "helius",
+    "network": "solana-mainnet",
+    "primaryHttpEnv": "HELIUS_RPC_URL",
+    "primaryWssEnv": "HELIUS_WSS_URL",
+    "devnetHttpEnv": "HELIUS_DEVNET_URL",
+    "aliases": {
+      "rpcUrlEnv": "RPC_URL",
+      "solanaRpcUrlEnv": "SOLANA_RPC_URL",
+      "nextPublicRpcUrlEnv": "NEXT_PUBLIC_RPC_URL",
+      "fallbackRpcEnv": "FALLBACK_RPC",
+      "fallbackWssEnv": "FALLBACK_WSS"
+    },
+    "configured": {
+      "heliusRpcUrl": true,
+      "heliusWssUrl": true,
+      "heliusDevnetUrl": true,
+      "rpcUrl": true,
+      "solanaRpcUrl": true,
+      "nextPublicRpcUrl": true,
+      "fallbackRpc": true,
+      "fallbackWss": true
+    }
+  },
   "validation": {
     "ok": true,
     "errors": [],
     "warnings": [
-      "default Apigee target is still a deployment placeholder; set OPENCLAWD_GATEWAY_TARGET_URL and replace it before production deploy",
-      "X402_STORE_WALLET is not set; generated manifests retain the wallet placeholder",
-      "X402_FEE_PAYER_WALLET is not set; generated manifests retain the wallet placeholder",
-      "OPENROUTER_API_KEY is not set; OpenRouter free-model fulfillment remains disabled",
-      "XAI_API_KEY is not set; Grok text and Grok Imagine image routes remain disabled",
-      "OPENAI_API_KEY is not set; OpenAI fallback fulfillment remains disabled"
+      "default Apigee target is still a deployment placeholder; set OPENCLAWD_GATEWAY_TARGET_URL and replace it before production deploy"
     ],
     "checked": [
       "/Users/8bit/PAYMENTS/apigee/apiproxy/OpenClawdPrivateStore.xml",
@@ -214,8 +334,13 @@
       "/Users/8bit/PAYMENTS/apigee/apiproxy/targets/x402-registry.xml",
       "/Users/8bit/PAYMENTS/apigee/apiproxy/targets/x402-agent-chat.xml",
       "/Users/8bit/PAYMENTS/apigee/apiproxy/targets/x402-agents.xml",
+      "/Users/8bit/PAYMENTS/apigee/apiproxy/targets/openrouter-chat.xml",
+      "/Users/8bit/PAYMENTS/apigee/apiproxy/targets/xai-chat.xml",
+      "/Users/8bit/PAYMENTS/apigee/apiproxy/targets/xai-images.xml",
+      "/Users/8bit/PAYMENTS/apigee/apiproxy/targets/openai-responses.xml",
       "/Users/8bit/PAYMENTS/apigee/apiproxy/policies/AM-PrivateDefaults.xml",
       "/Users/8bit/PAYMENTS/apigee/apiproxy/policies/AM-SetX402Headers.xml",
+      "/Users/8bit/PAYMENTS/apigee/apiproxy/policies/AM-SetInferenceHeaders.xml",
       "/Users/8bit/PAYMENTS/apigee/apiproxy/policies/EV-VerifyApiKey.xml",
       "/Users/8bit/PAYMENTS/apigee/apiproxy/policies/JWT-ExtractAgentAssertion.xml",
       "/Users/8bit/PAYMENTS/apigee/apiproxy/policies/Q-StorePerAppMinute.xml",

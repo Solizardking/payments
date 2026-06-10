@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<AssignMessage async="false" continueOnError="false" enabled="true" name="AM-SetInferenceHeaders">
+  <DisplayName>AM-SetInferenceHeaders</DisplayName>
+  <AssignVariable>
+    <Name>private.inference.openrouterBase</Name>
+    <Value>https://openrouter.ai/api/v1</Value>
+  </AssignVariable>
+  <AssignVariable>
+    <Name>private.inference.xaiBase</Name>
+    <Value>https://api.x.ai/v1</Value>
+  </AssignVariable>
+  <AssignVariable>
+    <Name>private.inference.openaiBase</Name>
+    <Value>https://api.openai.com/v1</Value>
+  </AssignVariable>
+  <AssignVariable>
+    <Name>request.header.x-openclawd-merchant</Name>
+    <Value>openclawd-merchant</Value>
+  </AssignVariable>
+  <AssignVariable>
+    <Name>request.header.x-openclawd-product-class</Name>
+    <Value>paid-inference</Value>
+  </AssignVariable>
+  <AssignVariable>
+    <Name>request.header.x-openclawd-edge</Name>
+    <Value>apigee-private</Value>
+  </AssignVariable>
+  <AssignVariable>
+    <Name>request.header.accept</Name>
+    <Value>application/json</Value>
+  </AssignVariable>
+  <IgnoreUnresolvedVariables>true</IgnoreUnresolvedVariables>
+</AssignMessage>

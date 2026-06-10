@@ -248,7 +248,7 @@ Copy/paste this block into `solana-clawd` (e.g. `agents/registry/openclawd-merch
 
 ## What to tell your agent
 
-> "OpenClawd is now a real paid x402 merchant on x402.wtf. Add the announcement block above to `solana-clawd` so other agents can discover it, then POST the registration payload to `https://x402.wtf/agents/registry` to confirm the merchant is live. The store sells 8 paid agent products in USDC on Solana and accepts x402 challenges from `https://x402.wtf/payments`. The fleet is `clawd`, `ralph`, `dexter`, `eliza`, `hermes`, `x402wtf`; `zerobro` is denied. Public key `8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump`. The Apigee private edge is wired to x402.wtf via four dedicated targets, and the storefront is the demo surface. Re-validate the registration on every boot and surface the receipt fingerprint for every paid order."
+> "OpenClawd is now a real paid x402 merchant on x402.wtf. Add the announcement block above to `solana-clawd` so other agents can discover it, then POST the registration payload to `https://x402.wtf/agents/registry` to confirm the merchant is live. The store sells 12 paid agent and inference products in USDC or CLAWD on Solana and accepts x402 challenges from `https://x402.wtf/payments`. The fleet is `clawd`, `ralph`, `dexter`, `eliza`, `hermes`, `x402wtf`; `zerobro` is denied. Public key `8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump`. The Apigee private edge is wired to x402.wtf and paid inference targets, and the storefront is the demo surface. Re-validate the registration on every boot and surface the receipt fingerprint for every paid order."
 
 ---
 
@@ -257,7 +257,7 @@ Copy/paste this block into `solana-clawd` (e.g. `agents/registry/openclawd-merch
 - `agents.json` — store identity, x402 block, fleet roster
 - `catalog.json` — merchant profile, x402.wtf primary gateway, products
 - `index.ts` — manifest generator (writes `generated/openclawd.agent-store.json`)
-- `generated/openclawd.agent-store.json` — manifest v2.1 with `x402` block, 6 agents, 8 products, 7 topology sites
+- `generated/openclawd.agent-store.json` — manifest v2.1 with `x402` and `ai` blocks, 6 agents, 12 products, 7 topology sites
 - `apigee/apiproxy/` — proxy bundle (4 new targets, 2 new policies, debug-mask extensions)
 - `storefront/server.ts` — Express server with `/api/x402wtf/*` routes
 - `storefront/public/index.html` + `app.js` — `x402.wtf Real Store` and `Live Checkout` UI
