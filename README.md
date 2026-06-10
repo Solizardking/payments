@@ -25,6 +25,14 @@
 [![Apigee](https://img.shields.io/badge/edge-Apigee-5C2D91?style=for-the-badge&logo=google-cloud)](https://cloud.google.com/apigee)
 [![Status](https://img.shields.io/badge/store-registered-00C853?style=for-the-badge)](https://x402.wtf/agents/registry)
 
+![Animated OpenClawd x402 payment loop](docs/x402-payment-loop.svg)
+
+**GitHub proof links**
+
+- Payment gateway: [`https://x402.wtf/payments`](https://x402.wtf/payments)
+- Agent registry: [`https://x402.wtf/agents/registry`](https://x402.wtf/agents/registry)
+- Companion agent runtime: [`github.com/solizardking/solana-clawd`](https://github.com/solizardking/solana-clawd)
+
 ---
 
 ## ⚡ What just happened (TL;DR for the impatient)
@@ -310,6 +318,7 @@ PAYMENTS/
 # 1. Install everything
 npm install
 npm --prefix storefront install
+npm --prefix truand install
 
 # 2. Set up the operator wallets in storefront/.env.local
 cat > storefront/.env.local <<'EOF'
@@ -326,6 +335,7 @@ OPENAI_API_KEY=<server-side OpenAI fallback key>
 # OPENCLAWD_XAI_MODEL=grok-4.3
 # OPENCLAWD_XAI_IMAGE_MODEL=grok-imagine-image-quality
 # OPENCLAWD_OPENAI_MODEL=gpt-4.1-mini
+# EXPOSE_BROWSER_PUBLIC_KEYS=false
 # (optional: GEMINI_API_KEY, MOONPAY_*, HELIUS_RPC_URL)
 EOF
 
@@ -333,7 +343,10 @@ EOF
 npm run list
 npm run launch -- clawd ralph dexter eliza hermes x402wtf
 
-# 4. Boot the storefront (in a separate terminal)
+# 4. Verify the repo before opening a PR or pushing to GitHub
+npm run check
+
+# 5. Boot the storefront (in a separate terminal)
 npm run storefront
 # → http://127.0.0.1:4318
 ```
@@ -341,6 +354,8 @@ npm run storefront
 The launcher rejects `zerobro` and writes:
 - `generated/openclawd.agent-store.json` (manifest v2.1)
 - `generated/sessions/store-YYYYMMDD-HHMMSS.json` (fleet session)
+
+`npm run check` runs the full local proof chain: manifest generation, truand manifest generation, Apigee integration, Apigee bundle validation, and TypeScript checks for the root CLI, storefront, and truand fleet. It is the command to run before publishing to GitHub.
 
 ---
 
@@ -381,6 +396,25 @@ The four x402 lanes (`X402Payments`, `X402Registry`, `X402AgentChat`, `X402Agent
 ```
 
 `zerobro` is blocked at admission. There is no path around it. Don't ask.
+
+## ✅ GitHub release safety checklist
+
+Run this before pushing:
+
+```bash
+git status --short --untracked-files=all
+git ls-files .env .env.local storefront/.env.local truand/.env.local
+npm run check
+```
+
+Expected safety posture:
+
+- `.env`, `.env.local`, `storefront/.env.local`, and `truand/.env.local` must return no tracked files.
+- Example files use placeholder values only; never paste live API keys into `.env.example`, README snippets, generated JSON, or screenshots.
+- `/api/config` reports guard booleans and masked public integration values by default. Set `EXPOSE_BROWSER_PUBLIC_KEYS=true` only when a browser SDK explicitly requires a restricted publishable key.
+- Browser routes may expose public identifiers such as `X402_PUBLIC_KEY`; server-only values stay behind guard booleans and server-generated routes.
+- Apigee debug masking covers x402 payment headers, payment signatures, prompt/image payloads, and provider credentials.
+- Generated provisioning outputs under `generated/*.provisioned.json` remain ignored because they can contain live service IDs or URLs.
 
 ---
 
@@ -510,7 +544,7 @@ The fleet has four roles: **concierge**, **checkout**, **facilitator**, **alchem
 
 ## 📣 Announce it in solana-clawd
 
-The file [`merchant.md`](./merchant.md) is a self-contained announcement your agent can use to:
+The file [`merchant.md`](./merchant.md) is a self-contained announcement your agent can use with [`github.com/solizardking/solana-clawd`](https://github.com/solizardking/solana-clawd) to:
 
 1. Add the merchant listing to `solana-clawd/agents/registry/openclawd-merchant.md`
 2. POST the registration payload to `https://x402.wtf/agents/registry`
@@ -539,7 +573,7 @@ It contains the TL;DR, merchant identity table, all 9 canonical x402.wtf URLs, t
 │  Most hackathon projects mock the payment layer.                           │
 │  We didn't. We made a real paid x402 store on x402.wtf.                    │
 │                                                                            │
-│  ✔  8 purchasable products, all with x402 challenge paths                 │
+│  ✔  12 purchasable products, all with x402 challenge paths                │
 │  ✔  Real call to https://x402.wtf/payments on every checkout               │
 │  ✔  Real registration on https://x402.wtf/agents/registry                 │
 │  ✔  Real SHA-256 receiptFingerprint for every paid order                   │

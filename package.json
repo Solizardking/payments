@@ -11,6 +11,8 @@
     "apigee:validate": "node --import tsx/esm index.ts apigee:validate",
     "launch": "bash ./launch.sh",
     "storefront": "npm --prefix storefront run dev",
+    "typecheck": "tsc --noEmit -p tsconfig.json && npm --prefix storefront run typecheck && npm --prefix truand run typecheck",
+    "check": "npm run manifest && npm run truand:manifest && npm run apigee:integrate && npm run apigee:validate && npm run typecheck",
     "truand:plan": "npm --prefix truand run plan",
     "truand:manifest": "npm --prefix truand run manifest",
     "truand:provision": "npm --prefix truand run provision"

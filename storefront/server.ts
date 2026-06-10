@@ -45,6 +45,8 @@ app.get("/health", (_req, res) => {
 app.get("/api/config", (_req, res) => {
   const geminiKey = resolveGeminiKey();
   const inferenceProvider = resolveInferenceProvider();
+  const exposeBrowserPublicKeys = process.env.EXPOSE_BROWSER_PUBLIC_KEYS === "true";
+  const moonPayConfigured = hasRealValue(process.env.MOONPAY_API_KEY) && hasRealValue(process.env.MOONPAY_WALLET);
   const merchantSecretsPresent = [
     "MOONPAY_SECRET_KEY",
     "MOONPAY_WEBHOOK_KEY",
@@ -55,16 +57,23 @@ app.get("/api/config", (_req, res) => {
 
   res.json({
     public: {
-      googleApiKey: publicValue(process.env.GOOGLE_API_KEY),
-      moonPayMerchantId: publicValue(process.env.MOONPAY_MERCHANT_ID),
-      moonPayWallet: publicValue(process.env.MOONPAY_WALLET),
-      moonPayApiKey: publicValue(process.env.MOONPAY_API_KEY),
-      merchantServer: publicValue(process.env.MERCHANT_SERVER),
-      merchantPort: publicValue(process.env.MERCHANT_PORT),
-      merchantBucket: publicValue(process.env.MERCHANT_GOOGLE_CLOUD_BUCKET),
+      googleApiKey: exposeBrowserPublicKeys ? publicValue(process.env.GOOGLE_API_KEY) : "",
+      moonPayMerchantId: exposeBrowserPublicKeys ? publicValue(process.env.MOONPAY_MERCHANT_ID) : "",
+      moonPayWallet: exposeBrowserPublicKeys ? publicValue(process.env.MOONPAY_WALLET) : "",
+      moonPayApiKey: exposeBrowserPublicKeys ? publicValue(process.env.MOONPAY_API_KEY) : "",
+      merchantServer: exposeBrowserPublicKeys ? publicValue(process.env.MERCHANT_SERVER) : "",
+      merchantPort: exposeBrowserPublicKeys ? publicValue(process.env.MERCHANT_PORT) : "",
+      merchantBucket: exposeBrowserPublicKeys ? publicValue(process.env.MERCHANT_GOOGLE_CLOUD_BUCKET) : "",
+      moonPayConfigured,
+      moonPayMerchantIdDisplay: maskedPublicValue(process.env.MOONPAY_MERCHANT_ID),
+      moonPayWalletDisplay: maskedPublicValue(process.env.MOONPAY_WALLET),
+      moonPayApiKeyDisplay: maskedPublicValue(process.env.MOONPAY_API_KEY),
+      merchantBucketDisplay: maskedPublicValue(process.env.MERCHANT_GOOGLE_CLOUD_BUCKET),
     },
     guards: {
       secretsProtected: true,
+      browserPublicKeysExposed: exposeBrowserPublicKeys,
+      moonPayBuyLinkServerSide: moonPayConfigured,
       googleKeyShouldBeRestricted: hasRealValue(process.env.GOOGLE_API_KEY),
       moonPaySecretsLoadedServerSide: merchantSecretsPresent,
       geminiServerSideEnabled: hasRealValue(geminiKey),
@@ -311,16 +320,7 @@ app.post("/api/checkout/session", (req, res) => {
     createdAt: new Date().toISOString(),
     merchantPath: product.merchantPath,
     narrative: buildSessionNarrative(product, protocol, quote),
-    moonPayUrl:
-      asset === "USDC"
-        ? buildMoonPayUrl({
-            apiKey: process.env.MOONPAY_API_KEY || "",
-            merchantId: process.env.MOONPAY_MERCHANT_ID || "",
-            walletAddress: process.env.MOONPAY_WALLET || "",
-            amount,
-            email: buyerEmail,
-          })
-        : null,
+    moonPayUrl: asset === "USDC" && moonPayConfigured() ? buildMoonPayRedirectPath(amount, buyerEmail) : null,
     fulfillmentPreview: buildFulfillmentPreview(product),
   };
 
@@ -950,6 +950,14 @@ app.post("/api/x402wtf/checkout/:id/verify", async (req, res) => {
     res.status(400).json({ ok: false, error: "payment_signature_required" });
     return;
   }
+  if (paymentSignature && !looksLikeSolanaSignature(paymentSignature)) {
+    res.status(400).json({ ok: false, error: "invalid_payment_signature_shape" });
+    return;
+  }
+  if (xPayment && !looksLikeXPaymentProof(xPayment)) {
+    res.status(400).json({ ok: false, error: "invalid_x_payment_shape" });
+    return;
+  }
   session.paymentSignature = paymentSignature || null;
   session.xPayment = xPayment || null;
   session.status = "verified";
@@ -1019,22 +1027,34 @@ app.get("/api/x402wtf/registry/register", async (_req, res) => {
 app.post("/api/moonpay/buy-link", (req, res) => {
   const amount = cleanAmount(req.body?.amount, "50");
   const email = cleanString(req.body?.email);
-  const walletAddress = process.env.MOONPAY_WALLET || "";
-  const url = buildMoonPayUrl({
-    apiKey: process.env.MOONPAY_API_KEY || "",
-    merchantId: process.env.MOONPAY_MERCHANT_ID || "",
-    walletAddress,
-    amount,
-    email,
-  });
+  const url = moonPayConfigured() ? buildMoonPayRedirectPath(amount, email) : null;
 
   res.json({
     ok: Boolean(url),
     url,
-    mode: "checkout",
-    walletAddress,
+    mode: "server-redirect",
+    walletAddress: maskedPublicValue(process.env.MOONPAY_WALLET),
     amountUsd: amount,
   });
+});
+
+app.get("/api/moonpay/redirect", (req, res) => {
+  const amount = cleanAmount(req.query?.amount, "50");
+  const email = cleanString(req.query?.email);
+  const url = buildMoonPayUrl({
+    apiKey: process.env.MOONPAY_API_KEY || "",
+    merchantId: process.env.MOONPAY_MERCHANT_ID || "",
+    walletAddress: process.env.MOONPAY_WALLET || "",
+    amount,
+    email,
+  });
+
+  if (!url) {
+    res.status(400).json({ ok: false, error: "moonpay_not_configured" });
+    return;
+  }
+
+  res.redirect(302, url);
 });
 
 app.get("/api/moonpay/workbench", async (_req, res) => {
@@ -1130,6 +1150,31 @@ function hasRealValue(value: string | undefined): boolean {
 
 function publicValue(value: string | undefined): string {
   return hasRealValue(value) ? value || "" : "";
+}
+
+function maskedPublicValue(value: string | undefined): string {
+  if (!hasRealValue(value)) return "";
+  const raw = value.trim();
+  if (raw.length <= 8) return "configured";
+  return `${raw.slice(0, 4)}...${raw.slice(-4)}`;
+}
+
+function moonPayConfigured(): boolean {
+  return hasRealValue(process.env.MOONPAY_API_KEY) && hasRealValue(process.env.MOONPAY_WALLET);
+}
+
+function buildMoonPayRedirectPath(amount: string, email = ""): string {
+  const params = new URLSearchParams({ amount });
+  if (email) params.set("email", email);
+  return `/api/moonpay/redirect?${params.toString()}`;
+}
+
+function looksLikeSolanaSignature(value: string): boolean {
+  return /^[1-9A-HJ-NP-Za-km-z]{64,120}$/.test(value);
+}
+
+function looksLikeXPaymentProof(value: string): boolean {
+  return value.length >= 24 && value.length <= 4096;
 }
 
 async function detectMoonPayCli(): Promise<{ installed: boolean; version: string | null }> {
@@ -1622,14 +1667,15 @@ async function buildX402Fulfillment(session: X402Session): Promise<any> {
       "Mark the order as fulfilled in the Clawd store ledger.",
       "Hand the artifact to Dexter or HERMES for downstream delivery.",
     ],
-    operatorNote:
-      "This receipt is the durable record that the x402.wtf gateway accepted payment. Pair it with the on-chain transaction for full audit.",
+    operatorNote: session.challenge?.x402Fallback
+      ? "This is a local fallback receipt because the server-to-server x402.wtf request did not return a gateway challenge. Pair it with a real gateway response or on-chain transaction before production audit."
+      : "This receipt is the durable record that the x402.wtf gateway accepted payment. Pair it with the on-chain transaction for full audit.",
   };
 
   const fulfillment = await buildPaidInferenceArtifact(session, {
     role: "Dexter + x402wtf bridge",
     task:
-      "Produce a compact merchant fulfillment note for a paid x402 order. Return JSON with keys deliverySummary, merchantActions, and buyerFollowUp.",
+      "Produce a compact merchant fulfillment note for a paid x402 order. Do not claim on-chain settlement, bridge deployment, or gateway acceptance unless the session explicitly includes that evidence. If x402Fallback is true, describe it as a local fallback receipt. Return JSON with keys deliverySummary, merchantActions, and buyerFollowUp.",
   });
 
   return {
@@ -1667,6 +1713,7 @@ async function buildPaidInferenceArtifact(
       `Product: ${session.productTitle}.`,
       `Amount: ${session.amount} ${session.asset}.`,
       `Merchant path: ${session.merchantPath}.`,
+      `x402 fallback: ${"challenge" in session && session.challenge?.x402Fallback ? "true" : "false"}.`,
       `Task: ${input.task}`,
       "Respond with valid JSON only.",
     ].join("\n");

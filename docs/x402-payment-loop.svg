@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="260" viewBox="0 0 920 260" role="img" aria-labelledby="title desc">
+  <title id="title">OpenClawd x402 payment loop</title>
+  <desc id="desc">Animated diagram showing buyer, storefront, x402.wtf payments, Apigee edge, and receipt fingerprint flow.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#10131f"/>
+      <stop offset="55%" stop-color="#171b2b"/>
+      <stop offset="100%" stop-color="#0e211a"/>
+    </linearGradient>
+    <linearGradient id="pulse" x1="0" x2="1">
+      <stop offset="0%" stop-color="#ff3e3e"/>
+      <stop offset="55%" stop-color="#33d69f"/>
+      <stop offset="100%" stop-color="#7c5cff"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <style>
+      .label { fill: #f7fbff; font: 700 16px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .sub { fill: #aeb9c8; font: 12px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .node { fill: #171d2d; stroke: #33415f; stroke-width: 1.2; }
+      .route { fill: none; stroke: #42506d; stroke-width: 3; stroke-linecap: round; }
+      .packet { fill: url(#pulse); filter: url(#glow); }
+      .tick { fill: #33d69f; opacity: .86; }
+    </style>
+  </defs>
+  <rect width="920" height="260" rx="18" fill="url(#bg)"/>
+  <text x="34" y="38" class="label">OpenClawd paid checkout loop</text>
+  <text x="34" y="60" class="sub">POST https://x402.wtf/payments -> sign challenge -> verify receipt -> store SHA-256 fingerprint</text>
+
+  <g transform="translate(34 96)">
+    <rect class="node" width="142" height="78" rx="8"/>
+    <text x="20" y="34" class="label">Buyer</text>
+    <text x="20" y="55" class="sub">Solana wallet</text>
+  </g>
+  <g transform="translate(216 96)">
+    <rect class="node" width="150" height="78" rx="8"/>
+    <text x="20" y="34" class="label">Storefront</text>
+    <text x="20" y="55" class="sub">Express API</text>
+  </g>
+  <g transform="translate(406 96)">
+    <rect class="node" width="146" height="78" rx="8"/>
+    <text x="20" y="34" class="label">Apigee</text>
+    <text x="20" y="55" class="sub">private edge</text>
+  </g>
+  <g transform="translate(592 96)">
+    <rect class="node" width="150" height="78" rx="8"/>
+    <text x="20" y="34" class="label">x402.wtf</text>
+    <text x="20" y="55" class="sub">payments</text>
+  </g>
+  <g transform="translate(782 96)">
+    <rect class="node" width="104" height="78" rx="8"/>
+    <text x="18" y="34" class="label">Receipt</text>
+    <text x="18" y="55" class="sub">fingerprint</text>
+  </g>
+
+  <path class="route" d="M176 135 H216"/>
+  <path class="route" d="M366 135 H406"/>
+  <path class="route" d="M552 135 H592"/>
+  <path class="route" d="M742 135 H782"/>
+  <path class="route" d="M834 174 C760 224 320 224 106 174"/>
+
+  <circle class="packet" r="8">
+    <animateMotion dur="4s" repeatCount="indefinite" path="M106 135 H834 C760 224 320 224 106 174 C94 165 94 145 106 135"/>
+    <animate attributeName="r" values="6;10;6" dur="1s" repeatCount="indefinite"/>
+  </circle>
+
+  <g transform="translate(34 218)">
+    <circle class="tick" cx="0" cy="-4" r="4">
+      <animate attributeName="opacity" values=".25;1;.25" dur="1.2s" repeatCount="indefinite"/>
+    </circle>
+    <text x="14" y="0" class="sub">No secrets in browser payloads. Operator keys stay in untracked env or platform secret stores.</text>
+  </g>
+</svg>

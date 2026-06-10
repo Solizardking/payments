@@ -77,6 +77,86 @@
         "provider": "none",
         "reason": "provider_not_configured"
       }
+    },
+    {
+      "id": "evt_9bece5f3-b",
+      "type": "x402_challenged",
+      "at": "2026-06-10T02:29:55.283Z",
+      "detail": {
+        "sessionId": "x402_7d4456d9",
+        "productId": "prod-x402-bridge",
+        "amount": "0.01",
+        "asset": "USDC",
+        "upstreamStatus": 403,
+        "paymentsEndpoint": "https://x402.wtf/payments",
+        "buyerWallet": "GyZGtA7hEThVHZpj52XC9jX15a8ABtDHTwELjFRWEts4"
+      }
+    },
+    {
+      "id": "evt_401b9c2e-0",
+      "type": "checkout_session_created",
+      "at": "2026-06-10T02:30:55.781Z",
+      "detail": {
+        "sessionId": "sess_1bf5cdad",
+        "productId": "prod-x402-bridge",
+        "amount": "0.01",
+        "asset": "USDC",
+        "protocol": "x402",
+        "buyerEmail": "judge@openclawd.demo"
+      }
+    },
+    {
+      "id": "evt_4e276a2e-6",
+      "type": "x402_challenged",
+      "at": "2026-06-10T02:30:56.006Z",
+      "detail": {
+        "sessionId": "x402_76fe275b",
+        "productId": "prod-x402-bridge",
+        "amount": "0.01",
+        "asset": "USDC",
+        "upstreamStatus": 403,
+        "paymentsEndpoint": "https://x402.wtf/payments",
+        "buyerWallet": "GyZGtA7hEThVHZpj52XC9jX15a8ABtDHTwELjFRWEts4"
+      }
+    },
+    {
+      "id": "evt_885b6788-c",
+      "type": "x402_challenged",
+      "at": "2026-06-10T02:31:58.968Z",
+      "detail": {
+        "sessionId": "x402_31a6391e",
+        "productId": "prod-x402-bridge",
+        "amount": "0.01",
+        "asset": "USDC",
+        "upstreamStatus": 403,
+        "paymentsEndpoint": "https://x402.wtf/payments",
+        "buyerWallet": "GyZGtA7hEThVHZpj52XC9jX15a8ABtDHTwELjFRWEts4"
+      }
+    },
+    {
+      "id": "evt_b53197de-d",
+      "type": "x402_verified",
+      "at": "2026-06-10T02:32:12.559Z",
+      "detail": {
+        "sessionId": "x402_31a6391e",
+        "productId": "prod-x402-bridge",
+        "amount": "0.01",
+        "asset": "USDC",
+        "paymentsEndpoint": "https://x402.wtf/payments",
+        "paymentSignaturePresent": false,
+        "xPaymentPresent": true
+      }
+    },
+    {
+      "id": "evt_fec946e9-6",
+      "type": "ai_fulfillment_succeeded",
+      "at": "2026-06-10T02:32:25.183Z",
+      "detail": {
+        "sessionId": "x402_31a6391e",
+        "productId": "prod-x402-bridge",
+        "provider": "openrouter",
+        "model": "nvidia/nemotron-3-ultra-550b-a55b-20260604:free"
+      }
     }
   ]
 }

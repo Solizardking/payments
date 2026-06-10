@@ -6,7 +6,8 @@
   "scripts": {
     "plan": "tsx src/index.ts plan",
     "manifest": "tsx src/index.ts manifest",
-    "provision": "tsx src/index.ts provision"
+    "provision": "tsx src/index.ts provision",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "@upstash/box": "^0.4.1",

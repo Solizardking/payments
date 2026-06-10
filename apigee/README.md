@@ -2,6 +2,10 @@
 
 This directory contains an Apigee proxy bundle for placing the autonomous merchant store behind a private and confidential API edge. The bundle is wired to x402.wtf/payments as a real paid x402 store, with dedicated route rules, target endpoints, and a 402 challenge fault rule for each paid lane.
 
+![Animated OpenClawd x402 payment loop](../docs/x402-payment-loop.svg)
+
+Primary payment rail: [`https://x402.wtf/payments`](https://x402.wtf/payments). Companion agent runtime: [`github.com/solizardking/solana-clawd`](https://github.com/solizardking/solana-clawd).
+
 Design goals:
 
 - Northbound traffic enters through Apigee Private Service Connect.
@@ -51,6 +55,7 @@ Local integration:
 
 ```bash
 npm run manifest
+npm run truand:manifest
 npm run apigee:integrate
 npm run apigee:validate
 ```
@@ -69,3 +74,12 @@ npm run apigee:validate
 This is a repo-local scaffold, not a fully provisioned Apigee org. You still need to deploy it into your Apigee environment and connect the target host and ingress privately. x402.wtf is a public paid provider; keep all operator secrets inside `private.*` variables and use debug masking.
 
 Before production deployment, replace the default target URL in `apiproxy/targets/default.xml` with the private OpenClawd gateway URL for the Apigee environment. The generated integration contract reports this as `apigee.defaultTarget.upstream`; set `OPENCLAWD_GATEWAY_TARGET_URL` while generating the contract to record the intended deployment value.
+
+GitHub safety gate:
+
+```bash
+npm run check
+git ls-files .env .env.local storefront/.env.local truand/.env.local
+```
+
+The env-file command should print nothing. Live API keys, wallet private keys, payment signatures, and provider credentials belong in local env files, Apigee KVM/secret stores, or deployment platform secrets only.

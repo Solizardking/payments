@@ -251,22 +251,28 @@ function renderMoonPay() {
   const summary = document.getElementById("moonpay-summary");
   const configBox = document.getElementById("merchant-config");
 
-  link.href = buildMoonPayUrl(publicConfig);
-  summary.textContent = publicConfig.moonPayApiKey
-    ? "Client-side onramp uses the MoonPay publishable key, merchant id, and target wallet only. Secret keys stay server-side."
-    : "MoonPay public config is not loaded yet. Add it to .env.local before demo time.";
+  link.href = "#";
+  summary.textContent = publicConfig.moonPayConfigured
+    ? "MoonPay onramp links are generated server-side; browser config only shows masked status values."
+    : "MoonPay config is not loaded yet. Add it to .env.local before demo time.";
 
   const rows = [
-    ["Merchant ID", publicConfig.moonPayMerchantId || "missing"],
-    ["Wallet", publicConfig.moonPayWallet || "missing"],
-    ["Bucket", publicConfig.merchantBucket || "missing"],
+    ["Merchant ID", publicConfig.moonPayMerchantIdDisplay || "missing"],
+    ["Wallet", publicConfig.moonPayWalletDisplay || "missing"],
+    ["API Key", publicConfig.moonPayApiKeyDisplay || "missing"],
+    ["Bucket", publicConfig.merchantBucketDisplay || "missing"],
     ["SFTP Host", publicConfig.merchantServer || "missing"],
     ["Secrets Protected", guards.secretsProtected ? "yes" : "no"],
+    ["Browser Keys Exposed", guards.browserPublicKeysExposed ? "yes" : "no"],
   ];
 
   configBox.innerHTML = rows
     .map(([label, value]) => `<div class="terminal-row"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`)
     .join("");
+
+  refreshMoonPayLink().catch(() => {
+    link.href = "#";
+  });
 }
 
 function renderMoonPayAgentOps() {
