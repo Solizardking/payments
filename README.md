@@ -441,6 +441,22 @@ Without overrides the manifest still builds, but the runtime commands remain pla
 
 ---
 
+## 🔒 Apigee integration contract
+
+Use the root CLI to bind the Apigee bundle, generated store manifest, generated session, and truand fleet into a single deploy handoff:
+
+```bash
+npm run manifest
+npm run apigee:integrate
+npm run apigee:validate
+```
+
+`apigee:integrate` writes `generated/openclawd.apigee-integration.json`. `apigee:validate` checks the required Apigee files, generated JSON artifacts, XML well-formedness, x402.wtf route targets, manifest privacy-edge settings, truand roles, and debug masking. Set `OPENCLAWD_SESSION_PATH` to validate a specific session file; otherwise the latest `generated/sessions/store-*.json` is used.
+
+Before production Apigee deployment, replace `REPLACE_WITH_PRIVATE_OPENCLAWD_GATEWAY` in `apigee/apiproxy/targets/default.xml` with the private gateway URL for the environment. You can set `OPENCLAWD_GATEWAY_TARGET_URL` while running `apigee:integrate` so the generated contract records the intended target.
+
+---
+
 ## 🤖 Truand fleet (keep-alive lane)
 
 The `truand/` package provisions the private keep-alive fleet for the merchant runtime.
@@ -449,10 +465,12 @@ The `truand/` package provisions the private keep-alive fleet for the merchant r
 npm --prefix truand install
 npm run truand:plan
 npm run truand:manifest
+npm run apigee:integrate
+npm run apigee:validate
 npm run truand:provision
 ```
 
-`plan` and `manifest` are local-only. `provision` performs live API calls to Upstash Box and Neon and expects untracked credentials (`UPSTASH_BOX_API_KEY`, `OPENAI_API_KEY`, `NEON_API_KEY`, `NEON_PROJECT_ID`) in the shell or a local env file.
+`plan`, `manifest`, `apigee:integrate`, and `apigee:validate` are local-only. `provision` performs live API calls to Upstash Box and Neon and expects untracked credentials (`UPSTASH_BOX_API_KEY`, `OPENAI_API_KEY`, `NEON_API_KEY`, `NEON_PROJECT_ID`) in the shell or a local env file.
 
 The fleet has four roles: **concierge**, **checkout**, **facilitator**, **alchemist**. Each one runs as a Box keep-alive Box with a `codex` harness and `openai/gpt-5.3-codex` model, charging in USDC with CLAWD-aware routing.
 

@@ -7,6 +7,8 @@
     "list": "node --import tsx/esm index.ts list",
     "manifest": "node --import tsx/esm index.ts manifest",
     "join": "node --import tsx/esm index.ts join",
+    "apigee:integrate": "node --import tsx/esm index.ts apigee:integrate",
+    "apigee:validate": "node --import tsx/esm index.ts apigee:validate",
     "launch": "bash ./launch.sh",
     "storefront": "npm --prefix storefront run dev",
     "truand:plan": "npm --prefix truand run plan",

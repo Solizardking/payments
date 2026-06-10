@@ -41,4 +41,24 @@ Bundle contents:
 - `apiproxy/policies/RF-X402Challenge.xml` — 402 challenge fault rule
 - `apiproxy/debugmask.json` — environment debug masking config example
 
+Local integration:
+
+```bash
+npm run manifest
+npm run apigee:integrate
+npm run apigee:validate
+```
+
+`npm run apigee:integrate` writes `generated/openclawd.apigee-integration.json`. That file is the local handoff contract connecting this proxy bundle to:
+
+- `generated/openclawd.agent-store.json`
+- the latest `generated/sessions/store-*.json` file, or `OPENCLAWD_SESSION_PATH` when set
+- `generated/truand-fleet.json`
+- the four x402.wtf target endpoints
+- the proxy base path `/openclawd/private-store`
+
+`npm run apigee:validate` checks required bundle files, parses generated JSON, validates XML with `xmllint`, verifies x402 route targets against the generated store manifest, and confirms debug masking covers the private payment and agent variables.
+
 This is a repo-local scaffold, not a fully provisioned Apigee org. You still need to deploy it into your Apigee environment and connect the target host and ingress privately. x402.wtf is a public paid provider; keep all operator secrets inside `private.*` variables and use debug masking.
+
+Before production deployment, replace the default target URL in `apiproxy/targets/default.xml` with the private OpenClawd gateway URL for the Apigee environment. The generated integration contract reports this as `apigee.defaultTarget.upstream`; set `OPENCLAWD_GATEWAY_TARGET_URL` while generating the contract to record the intended deployment value.

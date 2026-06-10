@@ -1,0 +1,174 @@
+{
+  "version": "1.0",
+  "generatedAt": "2026-06-10T00:50:27.479Z",
+  "status": "ready-for-private-apigee-deploy",
+  "store": {
+    "id": "universal-autonomous-commerce",
+    "name": "Universal Autonomous Commerce",
+    "merchantId": "openclawd-merchant",
+    "operator": "HERMES x402",
+    "publicKey": "8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump",
+    "settlementAsset": "USDC"
+  },
+  "files": {
+    "apigeeBundle": "apigee/apiproxy",
+    "proxyDescriptor": "apigee/apiproxy/OpenClawdPrivateStore.xml",
+    "debugMask": "apigee/apiproxy/debugmask.json",
+    "storeManifest": "generated/openclawd.agent-store.json",
+    "session": "generated/sessions/store-20260609-150811.json",
+    "truandFleet": "generated/truand-fleet.json"
+  },
+  "apigee": {
+    "proxyName": "openclawd-private-store",
+    "basePath": "/openclawd/private-store",
+    "ingress": "private-service-connect",
+    "perimeter": "vpc-service-controls",
+    "defaultTarget": {
+      "targetEndpoint": "default",
+      "upstream": "REPLACE_WITH_PRIVATE_OPENCLAWD_GATEWAY",
+      "purpose": "private OpenClawd gateway for registry, agents, A2A, and facilitator routes"
+    },
+    "x402Routes": [
+      {
+        "id": "x402-payments",
+        "proxyPath": "/openclawd/private-store/x402/payments/**",
+        "targetEndpoint": "x402-payments",
+        "upstream": "https://x402.wtf/payments"
+      },
+      {
+        "id": "x402-registry",
+        "proxyPath": "/openclawd/private-store/x402/registry",
+        "targetEndpoint": "x402-registry",
+        "upstream": "https://x402.wtf/agents/registry"
+      },
+      {
+        "id": "x402-agent-chat",
+        "proxyPath": "/openclawd/private-store/x402/agent/chat",
+        "targetEndpoint": "x402-agent-chat",
+        "upstream": "https://x402.wtf/api/x402/agent/chat"
+      },
+      {
+        "id": "x402-agents",
+        "proxyPath": "/openclawd/private-store/x402/agents",
+        "targetEndpoint": "x402-agents",
+        "upstream": "https://x402.wtf/api/agents"
+      }
+    ],
+    "policies": [
+      "AM-PrivateDefaults",
+      "AM-SetX402Headers",
+      "EV-VerifyApiKey",
+      "JWT-ExtractAgentAssertion",
+      "Q-StorePerAppMinute",
+      "SA-StoreBurstControl",
+      "AM-SanitizeResponse",
+      "RF-Unauthorized",
+      "RF-X402Challenge"
+    ],
+    "debugMasking": {
+      "config": "apigee/apiproxy/debugmask.json",
+      "privateVariablePrefix": "private."
+    }
+  },
+  "truand": {
+    "fleet": "openclawd-truand",
+    "roles": [
+      {
+        "id": "truand-concierge",
+        "lane": "customer-intake",
+        "chargeUsd": 0.03,
+        "boxName": "openclawd-truand-concierge",
+        "cron": "*/10 * * * *"
+      },
+      {
+        "id": "truand-checkout",
+        "lane": "merchant-checkout",
+        "chargeUsd": 0.1,
+        "boxName": "openclawd-truand-checkout",
+        "cron": "*/5 * * * *"
+      },
+      {
+        "id": "truand-facilitator",
+        "lane": "payments-control",
+        "chargeUsd": 0.15,
+        "boxName": "openclawd-truand-facilitator",
+        "cron": "*/15 * * * *"
+      },
+      {
+        "id": "truand-alchemist",
+        "lane": "clawd-flywheel",
+        "chargeUsd": 0.07,
+        "boxName": "openclawd-truand-alchemist",
+        "cron": "0 * * * *"
+      }
+    ]
+  },
+  "session": {
+    "id": "store-20260609-150811",
+    "createdAt": "2026-06-09T15:08:11.511Z",
+    "handoffs": [
+      "eliza -> clawd for high-intent or complex customer requests",
+      "clawd -> dexter when a buyer is ready for checkout or fulfillment",
+      "dexter -> hermes when a payment, protocol, or compliance edge case occurs",
+      "hermes -> gateway/facilitator when settlement plumbing needs intervention",
+      "apigee -> hermes when auth, quota, masking, or perimeter controls fail",
+      "buyer -> x402wtf bridge -> dexter fulfillment -> apigee receipt"
+    ]
+  },
+  "x402": {
+    "registry": "https://x402.wtf/agents/registry",
+    "paymentGateway": "https://x402.wtf/payments",
+    "agentChat": "https://x402.wtf/api/x402/agent/chat",
+    "agentsCatalog": "https://x402.wtf/api/agents",
+    "orchestrator": "https://x402.wtf/api/orchestrator",
+    "routerV1": "https://x402.wtf/api/router/v1/chat/completions",
+    "imperialRouter": "https://x402.wtf/api/imperial",
+    "perpsV1": "https://x402.wtf/api/perps/v1",
+    "phoenixMarkets": "https://x402.wtf/api/phoenix/markets",
+    "clawdChat": "https://x402.wtf/api/clawd",
+    "publicKey": "8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump",
+    "storeOperatorWallet": "${X402_STORE_WALLET}",
+    "feePayerWallet": "${X402_FEE_PAYER_WALLET}",
+    "settlementAsset": "USDC",
+    "mode": "real-store"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": [
+      "default Apigee target is still a deployment placeholder; set OPENCLAWD_GATEWAY_TARGET_URL and replace it before production deploy",
+      "X402_STORE_WALLET is not set; generated manifests retain the wallet placeholder",
+      "X402_FEE_PAYER_WALLET is not set; generated manifests retain the wallet placeholder"
+    ],
+    "checked": [
+      "/Users/8bit/PAYMENTS/apigee/apiproxy/OpenClawdPrivateStore.xml",
+      "/Users/8bit/PAYMENTS/apigee/apiproxy/debugmask.json",
+      "/Users/8bit/PAYMENTS/apigee/apiproxy/proxies/default.xml",
+      "/Users/8bit/PAYMENTS/apigee/apiproxy/targets/default.xml",
+      "/Users/8bit/PAYMENTS/apigee/apiproxy/targets/x402-payments.xml",
+      "/Users/8bit/PAYMENTS/apigee/apiproxy/targets/x402-registry.xml",
+      "/Users/8bit/PAYMENTS/apigee/apiproxy/targets/x402-agent-chat.xml",
+      "/Users/8bit/PAYMENTS/apigee/apiproxy/targets/x402-agents.xml",
+      "/Users/8bit/PAYMENTS/apigee/apiproxy/policies/AM-PrivateDefaults.xml",
+      "/Users/8bit/PAYMENTS/apigee/apiproxy/policies/AM-SetX402Headers.xml",
+      "/Users/8bit/PAYMENTS/apigee/apiproxy/policies/EV-VerifyApiKey.xml",
+      "/Users/8bit/PAYMENTS/apigee/apiproxy/policies/JWT-ExtractAgentAssertion.xml",
+      "/Users/8bit/PAYMENTS/apigee/apiproxy/policies/Q-StorePerAppMinute.xml",
+      "/Users/8bit/PAYMENTS/apigee/apiproxy/policies/SA-StoreBurstControl.xml",
+      "/Users/8bit/PAYMENTS/apigee/apiproxy/policies/AM-SanitizeResponse.xml",
+      "/Users/8bit/PAYMENTS/apigee/apiproxy/policies/RF-Unauthorized.xml",
+      "/Users/8bit/PAYMENTS/apigee/apiproxy/policies/RF-X402Challenge.xml",
+      "/Users/8bit/PAYMENTS/generated/openclawd.agent-store.json",
+      "/Users/8bit/PAYMENTS/generated/truand-fleet.json",
+      "/Users/8bit/PAYMENTS/generated/sessions/store-20260609-150811.json"
+    ]
+  },
+  "deployChecklist": [
+    "Replace the default target URL with the private OpenClawd gateway URL for the Apigee environment.",
+    "Deploy apigee/apiproxy to the Apigee org/environment behind Private Service Connect.",
+    "Attach an API product/app so EV-VerifyApiKey can resolve request.header.x-api-key.",
+    "Upload debugmask.json to the environment debug masking configuration.",
+    "Run a private GET /openclawd/private-store/health with x-api-key.",
+    "Run a POST /openclawd/private-store/x402/payments/<offer> and confirm the x402.wtf 402 challenge path."
+  ]
+}

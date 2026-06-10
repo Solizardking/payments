@@ -1,5 +1,6 @@
-import { mkdirSync, readFileSync, writeFileSync } from "fs";
-import { join } from "path";
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "fs";
+import { execFileSync } from "child_process";
+import { basename, join } from "path";
 import { parseArgs } from "util";
 
 type AgentRecord = {
@@ -114,6 +115,13 @@ type RuntimeProfile = {
   owns: string[];
 };
 
+type ValidationReport = {
+  ok: boolean;
+  errors: string[];
+  warnings: string[];
+  checked: string[];
+};
+
 const ROOT = new URL(".", import.meta.url);
 const REGISTRY_PATH = new URL("./agents.json", ROOT);
 const CATALOG_PATH = new URL("./catalog.json", ROOT);
@@ -138,8 +146,62 @@ const X402_PHOENIX_MARKETS = process.env.X402_PHOENIX_MARKETS ?? "https://x402.w
 const X402_CLAWD_CHAT = process.env.X402_CLAWD_CHAT ?? "https://x402.wtf/api/clawd";
 const X402_PUBLIC_KEY = process.env.X402_PUBLIC_KEY ?? "8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump";
 
+const APIGEE_PROXY_ROOT = join(ROOT.pathname, PRIVATE_PROXY_BUNDLE_PATH);
+const STORE_MANIFEST_PATH = join(ROOT.pathname, "generated", "openclawd.agent-store.json");
+const TRUAND_FLEET_PATH = join(ROOT.pathname, "generated", "truand-fleet.json");
+const APIGEE_INTEGRATION_PATH = join(ROOT.pathname, "generated", "openclawd.apigee-integration.json");
+const REQUIRED_APIGEE_FILES = [
+  "OpenClawdPrivateStore.xml",
+  "debugmask.json",
+  "proxies/default.xml",
+  "targets/default.xml",
+  "targets/x402-payments.xml",
+  "targets/x402-registry.xml",
+  "targets/x402-agent-chat.xml",
+  "targets/x402-agents.xml",
+  "policies/AM-PrivateDefaults.xml",
+  "policies/AM-SetX402Headers.xml",
+  "policies/EV-VerifyApiKey.xml",
+  "policies/JWT-ExtractAgentAssertion.xml",
+  "policies/Q-StorePerAppMinute.xml",
+  "policies/SA-StoreBurstControl.xml",
+  "policies/AM-SanitizeResponse.xml",
+  "policies/RF-Unauthorized.xml",
+  "policies/RF-X402Challenge.xml",
+];
+const X402_ROUTE_MAP = [
+  {
+    id: "x402-payments",
+    proxyPath: "/openclawd/private-store/x402/payments/**",
+    targetEndpoint: "x402-payments",
+    upstream: X402_PAYMENTS_ENDPOINT,
+  },
+  {
+    id: "x402-registry",
+    proxyPath: "/openclawd/private-store/x402/registry",
+    targetEndpoint: "x402-registry",
+    upstream: X402_REGISTRY_ENDPOINT,
+  },
+  {
+    id: "x402-agent-chat",
+    proxyPath: "/openclawd/private-store/x402/agent/chat",
+    targetEndpoint: "x402-agent-chat",
+    upstream: X402_AGENT_CHAT_ENDPOINT,
+  },
+  {
+    id: "x402-agents",
+    proxyPath: "/openclawd/private-store/x402/agents",
+    targetEndpoint: "x402-agents",
+    upstream: X402_AGENTS_CATALOG,
+  },
+];
+
 function loadJson<T>(url: URL): T {
   return JSON.parse(readFileSync(url, "utf8")) as T;
+}
+
+function loadJsonPath<T>(path: string): T {
+  return JSON.parse(readFileSync(path, "utf8")) as T;
 }
 
 function normalizeId(id: string): string {
@@ -442,6 +504,217 @@ function ensureOutputDir(...segments: string[]): string {
   return dir;
 }
 
+function latestSessionPath(): string {
+  if (process.env.OPENCLAWD_SESSION_PATH) {
+    return process.env.OPENCLAWD_SESSION_PATH;
+  }
+
+  const sessionDir = join(ROOT.pathname, "generated", "sessions");
+  const sessions = existsSync(sessionDir)
+    ? readdirSync(sessionDir)
+        .filter((entry) => entry.startsWith("store-") && entry.endsWith(".json"))
+        .sort()
+    : [];
+
+  if (sessions.length === 0) {
+    throw new Error("no generated session files found under generated/sessions");
+  }
+
+  return join(sessionDir, sessions[sessions.length - 1]);
+}
+
+function fileContains(path: string, expected: string): boolean {
+  return readFileSync(path, "utf8").includes(expected);
+}
+
+function assertXmlWellFormed(path: string): void {
+  execFileSync("xmllint", ["--noout", path], { stdio: "pipe" });
+}
+
+function buildValidationReport(): ValidationReport {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const checked: string[] = [];
+
+  for (const file of REQUIRED_APIGEE_FILES) {
+    const path = join(APIGEE_PROXY_ROOT, file);
+    checked.push(path);
+    if (!existsSync(path)) {
+      errors.push(`missing Apigee file: ${file}`);
+    }
+  }
+
+  for (const path of [STORE_MANIFEST_PATH, TRUAND_FLEET_PATH]) {
+    checked.push(path);
+    if (!existsSync(path)) {
+      errors.push(`missing generated artifact: ${path}`);
+    }
+  }
+
+  let sessionPath = "";
+  try {
+    sessionPath = latestSessionPath();
+    checked.push(sessionPath);
+    if (!existsSync(sessionPath)) errors.push(`missing generated session: ${sessionPath}`);
+  } catch (error) {
+    errors.push(error instanceof Error ? error.message : String(error));
+  }
+
+  if (errors.length > 0) {
+    return { ok: false, errors, warnings, checked };
+  }
+
+  let manifest: any;
+  let session: any;
+  let truandFleet: any;
+  let debugmask: any;
+  try {
+    manifest = loadJsonPath<any>(STORE_MANIFEST_PATH);
+    session = loadJsonPath<any>(sessionPath);
+    truandFleet = loadJsonPath<any>(TRUAND_FLEET_PATH);
+    debugmask = loadJsonPath<any>(join(APIGEE_PROXY_ROOT, "debugmask.json"));
+  } catch (error) {
+    errors.push(`invalid JSON: ${error instanceof Error ? error.message : String(error)}`);
+    return { ok: false, errors, warnings, checked };
+  }
+
+  for (const file of REQUIRED_APIGEE_FILES.filter((entry) => entry.endsWith(".xml"))) {
+    const path = join(APIGEE_PROXY_ROOT, file);
+    try {
+      assertXmlWellFormed(path);
+    } catch {
+      errors.push(`invalid XML: ${file}`);
+    }
+  }
+
+  const descriptor = readFileSync(join(APIGEE_PROXY_ROOT, "OpenClawdPrivateStore.xml"), "utf8");
+  const proxy = readFileSync(join(APIGEE_PROXY_ROOT, "proxies", "default.xml"), "utf8");
+  for (const route of X402_ROUTE_MAP) {
+    const targetPath = join(APIGEE_PROXY_ROOT, "targets", `${route.targetEndpoint}.xml`);
+    if (!fileContains(targetPath, route.upstream)) {
+      errors.push(`${route.targetEndpoint} target does not point at ${route.upstream}`);
+    }
+    if (!proxy.includes(`<TargetEndpoint>${route.targetEndpoint}</TargetEndpoint>`)) {
+      errors.push(`proxy route missing target endpoint ${route.targetEndpoint}`);
+    }
+    if (!descriptor.includes(`<TargetEndpoint>${route.targetEndpoint}</TargetEndpoint>`)) {
+      errors.push(`proxy descriptor missing target endpoint ${route.targetEndpoint}`);
+    }
+  }
+
+  if (manifest.x402?.paymentGateway !== X402_PAYMENTS_ENDPOINT) {
+    errors.push(`manifest x402 payment gateway is ${manifest.x402?.paymentGateway}, expected ${X402_PAYMENTS_ENDPOINT}`);
+  }
+  if (manifest.x402?.registry !== X402_REGISTRY_ENDPOINT) {
+    errors.push(`manifest x402 registry is ${manifest.x402?.registry}, expected ${X402_REGISTRY_ENDPOINT}`);
+  }
+  if (manifest.x402?.agentChat !== X402_AGENT_CHAT_ENDPOINT) {
+    errors.push(`manifest x402 agent chat is ${manifest.x402?.agentChat}, expected ${X402_AGENT_CHAT_ENDPOINT}`);
+  }
+  if (manifest.commerce?.privacyEdge?.proxyBundle !== PRIVATE_PROXY_BUNDLE_PATH) {
+    errors.push(`manifest privacy edge proxy bundle is ${manifest.commerce?.privacyEdge?.proxyBundle}, expected ${PRIVATE_PROXY_BUNDLE_PATH}`);
+  }
+  if (basename(session.manifest ?? "") !== "openclawd.agent-store.json") {
+    errors.push(`session manifest pointer is not openclawd.agent-store.json: ${session.manifest}`);
+  }
+  if (!Array.isArray(truandFleet.roles) || truandFleet.roles.length === 0) {
+    errors.push("truand fleet has no roles");
+  }
+  if (!debugmask.variables?.includes("private.payment.signature")) {
+    errors.push("debug mask does not include private.payment.signature");
+  }
+  if (!debugmask.variables?.includes("private.agent.jwt")) {
+    errors.push("debug mask does not include private.agent.jwt");
+  }
+
+  const defaultTarget = readFileSync(join(APIGEE_PROXY_ROOT, "targets", "default.xml"), "utf8");
+  if (defaultTarget.includes("REPLACE_WITH_PRIVATE_OPENCLAWD_GATEWAY")) {
+    warnings.push("default Apigee target is still a deployment placeholder; set OPENCLAWD_GATEWAY_TARGET_URL and replace it before production deploy");
+  }
+  if (!process.env.X402_STORE_WALLET) {
+    warnings.push("X402_STORE_WALLET is not set; generated manifests retain the wallet placeholder");
+  }
+  if (!process.env.X402_FEE_PAYER_WALLET) {
+    warnings.push("X402_FEE_PAYER_WALLET is not set; generated manifests retain the wallet placeholder");
+  }
+
+  return { ok: errors.length === 0, errors, warnings, checked };
+}
+
+function buildApigeeIntegration() {
+  const manifest = loadJsonPath<any>(STORE_MANIFEST_PATH);
+  const sessionPath = latestSessionPath();
+  const session = loadJsonPath<any>(sessionPath);
+  const truandFleet = loadJsonPath<any>(TRUAND_FLEET_PATH);
+  const validation = buildValidationReport();
+
+  return {
+    version: "1.0",
+    generatedAt: new Date().toISOString(),
+    status: validation.ok ? "ready-for-private-apigee-deploy" : "blocked-by-local-validation",
+    store: {
+      id: manifest.id,
+      name: manifest.name,
+      merchantId: manifest.merchant?.id,
+      operator: manifest.operator,
+      publicKey: manifest.x402?.publicKey,
+      settlementAsset: manifest.x402?.settlementAsset,
+    },
+    files: {
+      apigeeBundle: PRIVATE_PROXY_BUNDLE_PATH,
+      proxyDescriptor: `${PRIVATE_PROXY_BUNDLE_PATH}/OpenClawdPrivateStore.xml`,
+      debugMask: `${PRIVATE_PROXY_BUNDLE_PATH}/debugmask.json`,
+      storeManifest: "generated/openclawd.agent-store.json",
+      session: `generated/sessions/${basename(sessionPath)}`,
+      truandFleet: "generated/truand-fleet.json",
+    },
+    apigee: {
+      proxyName: "openclawd-private-store",
+      basePath: "/openclawd/private-store",
+      ingress: manifest.commerce?.privacyEdge?.ingress ?? "private-service-connect",
+      perimeter: manifest.commerce?.privacyEdge?.perimeter ?? "vpc-service-controls",
+      defaultTarget: {
+        targetEndpoint: "default",
+        upstream: process.env.OPENCLAWD_GATEWAY_TARGET_URL ?? "REPLACE_WITH_PRIVATE_OPENCLAWD_GATEWAY",
+        purpose: "private OpenClawd gateway for registry, agents, A2A, and facilitator routes",
+      },
+      x402Routes: X402_ROUTE_MAP,
+      policies: REQUIRED_APIGEE_FILES.filter((entry) => entry.startsWith("policies/")).map((entry) =>
+        entry.replace("policies/", "").replace(".xml", ""),
+      ),
+      debugMasking: {
+        config: `${PRIVATE_PROXY_BUNDLE_PATH}/debugmask.json`,
+        privateVariablePrefix: "private.",
+      },
+    },
+    truand: {
+      fleet: truandFleet.fleet,
+      roles: truandFleet.roles?.map((role: any) => ({
+        id: role.id,
+        lane: role.lane,
+        chargeUsd: role.chargeUsd,
+        boxName: role.boxName,
+        cron: role.cron,
+      })),
+    },
+    session: {
+      id: session.sessionId,
+      createdAt: session.createdAt,
+      handoffs: session.handoffs,
+    },
+    x402: manifest.x402,
+    validation,
+    deployChecklist: [
+      "Replace the default target URL with the private OpenClawd gateway URL for the Apigee environment.",
+      "Deploy apigee/apiproxy to the Apigee org/environment behind Private Service Connect.",
+      "Attach an API product/app so EV-VerifyApiKey can resolve request.header.x-api-key.",
+      "Upload debugmask.json to the environment debug masking configuration.",
+      "Run a private GET /openclawd/private-store/health with x-api-key.",
+      "Run a POST /openclawd/private-store/x402/payments/<offer> and confirm the x402.wtf 402 challenge path.",
+    ],
+  };
+}
+
 function buildSession(
   registry: Registry,
   catalog: Catalog,
@@ -618,6 +891,24 @@ function cmdLaunch(agentIds: string[]): number {
   return 0;
 }
 
+function cmdApigeeValidate(): number {
+  const report = buildValidationReport();
+  console.log(JSON.stringify(report, null, 2));
+  return report.ok ? 0 : 1;
+}
+
+function cmdApigeeIntegrate(): number {
+  const integration = buildApigeeIntegration();
+  ensureOutputDir();
+  writeFileSync(APIGEE_INTEGRATION_PATH, JSON.stringify(integration, null, 2));
+  console.log(APIGEE_INTEGRATION_PATH);
+  if (!integration.validation.ok) {
+    console.error("integration contract written, but local validation has blocking errors");
+    return 1;
+  }
+  return 0;
+}
+
 function main(): number {
   const { positionals } = parseArgs({
     args: process.argv.slice(2),
@@ -635,6 +926,10 @@ function main(): number {
       return cmdJoin(rest);
     case "launch":
       return cmdLaunch(rest);
+    case "apigee:validate":
+      return cmdApigeeValidate();
+    case "apigee:integrate":
+      return cmdApigeeIntegrate();
     default:
       console.error(`unknown command: ${command}`);
       return 1;
