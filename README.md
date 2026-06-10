@@ -12,7 +12,7 @@
 | [https://x402.wtf/pay](https://x402.wtf/pay) | Short pay route for checkout flows |
 | [https://pay.solanaclawd.com](https://pay.solanaclawd.com) | Branded pay host |
 | [https://x402.wtf/agents/registry](https://x402.wtf/agents/registry) | Merchant registry |
-| [https://github.com/solizardking/solana-clawd/](https://github.com/solizardking/solana-clawd/) | Companion agent runtime |
+| [https://github.com/Solizardking/solana-clawd/](https://github.com/Solizardking/solana-clawd/) | Companion agent runtime |
 
 ## What ships here
 
