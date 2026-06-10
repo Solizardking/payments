@@ -13,6 +13,9 @@ const STORE_MANIFEST = join(GENERATED_DIR, "openclawd.agent-store.json");
 loadEnvFile(join(dirname(__dirname), ".env.local"));
 
 const CLAWD_MINT = "8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump";
+const OPENROUTER_DEFAULT_FREE_MODEL = process.env.OPENCLAWD_OPENROUTER_MODEL || "nvidia/nemotron-3-ultra-550b-a55b:free";
+const XAI_DEFAULT_TEXT_MODEL = process.env.OPENCLAWD_XAI_MODEL || "grok-4.3";
+const XAI_DEFAULT_IMAGE_MODEL = process.env.OPENCLAWD_XAI_IMAGE_MODEL || "grok-imagine-image-quality";
 
 const TruandRoleSchema = z.object({
   id: z.string(),
@@ -45,14 +48,29 @@ type FleetBlueprint = {
   box: {
     keepAlive: true;
     harness: string;
+    provider: string;
     model: string;
+    apiKeyEnv: string;
+    modelSwarm: Array<{
+      id: string;
+      provider: string;
+      model: string;
+      purpose: string;
+    }>;
   };
   roles: TruandRole[];
+};
+
+type TruandProvider = {
+  provider: "openrouter" | "xai" | "openai";
+  model: string;
+  apiKeyEnv: "OPENROUTER_API_KEY" | "XAI_API_KEY" | "OPENAI_API_KEY";
 };
 
 function buildBlueprint(): FleetBlueprint {
   const fleet = process.env.TRUAND_FLEET_NAME || "openclawd-truand";
   const size = (process.env.TRUAND_DEFAULT_SIZE || "medium") as "small" | "medium" | "large";
+  const truandProvider = resolveTruandProvider();
   const roles: TruandRole[] = [
     {
       id: "truand-concierge",
@@ -121,10 +139,50 @@ function buildBlueprint(): FleetBlueprint {
     box: {
       keepAlive: true,
       harness: "codex",
-      model: "openai/gpt-5.3-codex",
+      provider: truandProvider.provider,
+      model: process.env.TRUAND_MODEL || truandProvider.model,
+      apiKeyEnv: truandProvider.apiKeyEnv,
+      modelSwarm: [
+        {
+          id: "openrouter-free-fulfillment",
+          provider: "openrouter",
+          model: OPENROUTER_DEFAULT_FREE_MODEL,
+          purpose: "Zero-cost paid-order fulfillment fallback through OpenRouter free models.",
+        },
+        {
+          id: "grok-orchestrator",
+          provider: "xai",
+          model: XAI_DEFAULT_TEXT_MODEL,
+          purpose: "Grok swarm coordination for Clawd/HERMES orchestration.",
+        },
+        {
+          id: "grok-build",
+          provider: "xai",
+          model: "grok-build-0.1",
+          purpose: "Agentic coding lane for storefront, gateway, and Apigee changes.",
+        },
+        {
+          id: "grok-imagine",
+          provider: "xai",
+          model: XAI_DEFAULT_IMAGE_MODEL,
+          purpose: "Image generation, image editing, and up-to-three-reference multi-image edits.",
+        },
+      ],
     },
     roles,
   };
+}
+
+function resolveTruandProvider(): TruandProvider {
+  const requested = (process.env.TRUAND_PROVIDER || process.env.OPENCLAWD_INFERENCE_PROVIDER || "").toLowerCase();
+  const providers: TruandProvider[] = [
+    { provider: "openrouter", model: `openrouter/${OPENROUTER_DEFAULT_FREE_MODEL}`, apiKeyEnv: "OPENROUTER_API_KEY" },
+    { provider: "xai", model: `xai/${XAI_DEFAULT_TEXT_MODEL}`, apiKeyEnv: "XAI_API_KEY" },
+    { provider: "openai", model: process.env.OPENCLAWD_OPENAI_MODEL || "openai/gpt-5.3-codex", apiKeyEnv: "OPENAI_API_KEY" },
+  ];
+  const requestedProvider = providers.find((entry) => entry.provider === requested);
+  if (requestedProvider) return requestedProvider;
+  return providers.find((entry) => process.env[entry.apiKeyEnv]) || providers[0];
 }
 
 async function cmdPlan(): Promise<number> {
@@ -147,11 +205,11 @@ async function cmdProvision(): Promise<number> {
   if (!boxApiKey) {
     throw new Error("Missing required environment variable: BOX_API_KEY or UPSTASH_BOX_API_KEY");
   }
-  requireEnv("OPENAI_API_KEY");
   requireEnv("NEON_API_KEY");
   requireEnv("NEON_PROJECT_ID");
 
   const blueprint = buildBlueprint();
+  requireEnv(blueprint.box.apiKeyEnv);
   const neonBranch = await ensureNeonBranch(blueprint.neon.branchName);
   const results = [];
 
@@ -165,7 +223,7 @@ async function cmdProvision(): Promise<number> {
       agent: {
         harness: Agent.Codex,
         model: blueprint.box.model,
-        apiKey: process.env.OPENAI_API_KEY!,
+        apiKey: process.env[blueprint.box.apiKeyEnv]!,
       },
       apiKey: boxApiKey,
     });
@@ -179,6 +237,12 @@ async function cmdProvision(): Promise<number> {
           clawdMint: CLAWD_MINT,
           neonBranch: neonBranch.branch?.id ?? null,
           sourceManifest: "generated/openclawd.agent-store.json",
+          inference: {
+            provider: blueprint.box.provider,
+            model: blueprint.box.model,
+            apiKeyEnv: blueprint.box.apiKeyEnv,
+            modelSwarm: blueprint.box.modelSwarm,
+          },
         },
         null,
         2,
@@ -201,7 +265,7 @@ async function cmdProvision(): Promise<number> {
       },
     });
 
-    const publicUrl = await box.getPublicUrl(role.servicePort, { bearerToken: true });
+    const publicUrl = await box.getPublicURL(role.servicePort, { bearerToken: true });
 
     results.push({
       role: role.id,

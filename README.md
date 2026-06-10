@@ -317,6 +317,15 @@ PORT=4318
 X402_STORE_WALLET=<your operator solana mainnet wallet>
 X402_FEE_PAYER_WALLET=<your fee-payer solana mainnet wallet>
 X402_PUBLIC_KEY=8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump
+OPENROUTER_API_KEY=<server-side openrouter key for free-model fulfillment>
+XAI_API_KEY=<server-side xAI key for Grok and Grok Imagine>
+OPENAI_API_KEY=<server-side OpenAI fallback key>
+# Optional overrides:
+# OPENCLAWD_INFERENCE_PROVIDER=openrouter|xai|openai|gemini
+# OPENCLAWD_OPENROUTER_MODEL=nvidia/nemotron-3-ultra-550b-a55b:free
+# OPENCLAWD_XAI_MODEL=grok-4.3
+# OPENCLAWD_XAI_IMAGE_MODEL=grok-imagine-image-quality
+# OPENCLAWD_OPENAI_MODEL=gpt-4.1-mini
 # (optional: GEMINI_API_KEY, MOONPAY_*, HELIUS_RPC_URL)
 EOF
 
@@ -411,8 +420,11 @@ CLAWD alternative prices use mint `8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump`
 | GET | `/api/x402wtf/checkout/:id` | Fetch session |
 | POST | `/api/x402wtf/checkout/:id/verify` | Verify payment-signature, mint x402 receipt |
 | GET | `/api/x402wtf/registry/register` | Re-register the merchant |
+| GET | `/api/ai/providers` | Server-side AI provider status, OpenRouter free-model discovery, Grok endpoints |
+| POST | `/api/ai/grok/image/generate` | xAI Grok Imagine generation via JSON API |
+| POST | `/api/ai/grok/image/edit` | xAI Grok Imagine image edit/multi-image edit via JSON API |
 | GET | `/api/judge-mode` | 90-second talk track |
-| GET | `/api/agents/gemini` | Gemini merchant agent (server-side) |
+| POST | `/api/agents/gemini` | Gemini merchant agent (server-side) |
 | POST | `/api/agents/wallet-brief` | Helius wallet intelligence (server-side) |
 | GET | `/api/moonpay/capabilities` | MoonPay CLI surface |
 | POST | `/api/moonpay/buy-link` | Build MoonPay buy link |
@@ -436,6 +448,13 @@ This repo does **not** vendor the full gateway or facilitator runtime. Override 
 | `X402_PAYMENTS_ENDPOINT` | `https://x402.wtf/payments` | x402 payment gateway |
 | `X402_REGISTRY_ENDPOINT` | `https://x402.wtf/agents/registry` | x402 agent registry |
 | `X402_AGENT_CHAT_ENDPOINT` | `https://x402.wtf/api/x402/agent/chat` | x402 agent chat |
+| `OPENROUTER_API_KEY` | none | OpenRouter fulfillment; defaults to a discovered/free `:free` model |
+| `XAI_API_KEY` | none | Grok text plus Grok Imagine image generation/editing |
+| `OPENAI_API_KEY` | none | OpenAI fallback fulfillment |
+| `OPENCLAWD_INFERENCE_PROVIDER` | `auto` | Force `openrouter`, `xai`, `openai`, or `gemini` |
+| `OPENCLAWD_OPENROUTER_MODEL` | `nvidia/nemotron-3-ultra-550b-a55b:free` | Default OpenRouter free model |
+| `OPENCLAWD_XAI_MODEL` | `grok-4.3` | Default Grok text model |
+| `OPENCLAWD_XAI_IMAGE_MODEL` | `grok-imagine-image-quality` | Default Grok Imagine image model |
 
 Without overrides the manifest still builds, but the runtime commands remain placeholders.
 
@@ -470,9 +489,9 @@ npm run apigee:validate
 npm run truand:provision
 ```
 
-`plan`, `manifest`, `apigee:integrate`, and `apigee:validate` are local-only. `provision` performs live API calls to Upstash Box and Neon and expects untracked credentials (`UPSTASH_BOX_API_KEY`, `OPENAI_API_KEY`, `NEON_API_KEY`, `NEON_PROJECT_ID`) in the shell or a local env file.
+`plan`, `manifest`, `apigee:integrate`, and `apigee:validate` are local-only. `provision` performs live API calls to Upstash Box and Neon and expects untracked credentials (`UPSTASH_BOX_API_KEY`, `NEON_API_KEY`, `NEON_PROJECT_ID`, plus the selected model provider key: `OPENROUTER_API_KEY`, `XAI_API_KEY`, or `OPENAI_API_KEY`) in the shell or a local env file.
 
-The fleet has four roles: **concierge**, **checkout**, **facilitator**, **alchemist**. Each one runs as a Box keep-alive Box with a `codex` harness and `openai/gpt-5.3-codex` model, charging in USDC with CLAWD-aware routing.
+The fleet has four roles: **concierge**, **checkout**, **facilitator**, **alchemist**. Each one runs as a Box keep-alive Box with a `codex` harness and the selected provider model. The default swarm exposes OpenRouter free fulfillment, Grok orchestration, Grok Build coding, and Grok Imagine image editing while charging in USDC with CLAWD-aware routing.
 
 ---
 

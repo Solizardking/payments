@@ -123,6 +123,7 @@ type ValidationReport = {
 };
 
 const ROOT = new URL(".", import.meta.url);
+loadEnvFile(new URL("./.env.local", ROOT));
 const REGISTRY_PATH = new URL("./agents.json", ROOT);
 const CATALOG_PATH = new URL("./catalog.json", ROOT);
 const PRIVATE_PROXY_BUNDLE_PATH = process.env.OPENCLAWD_PRIVATE_PROXY_BUNDLE_PATH ?? "apigee/apiproxy";
@@ -145,6 +146,12 @@ const X402_PERPS_V1 = process.env.X402_PERPS_V1 ?? "https://x402.wtf/api/perps/v
 const X402_PHOENIX_MARKETS = process.env.X402_PHOENIX_MARKETS ?? "https://x402.wtf/api/phoenix/markets";
 const X402_CLAWD_CHAT = process.env.X402_CLAWD_CHAT ?? "https://x402.wtf/api/clawd";
 const X402_PUBLIC_KEY = process.env.X402_PUBLIC_KEY ?? "8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump";
+const OPENAI_MODEL = process.env.OPENCLAWD_OPENAI_MODEL ?? "gpt-4.1-mini";
+const OPENROUTER_BASE_URL = process.env.OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1";
+const OPENROUTER_FREE_MODEL = process.env.OPENCLAWD_OPENROUTER_MODEL ?? "nvidia/nemotron-3-ultra-550b-a55b:free";
+const XAI_BASE_URL = process.env.XAI_BASE_URL ?? "https://api.x.ai/v1";
+const XAI_TEXT_MODEL = process.env.OPENCLAWD_XAI_MODEL ?? "grok-4.3";
+const XAI_IMAGE_MODEL = process.env.OPENCLAWD_XAI_IMAGE_MODEL ?? "grok-imagine-image-quality";
 
 const APIGEE_PROXY_ROOT = join(ROOT.pathname, PRIVATE_PROXY_BUNDLE_PATH);
 const STORE_MANIFEST_PATH = join(ROOT.pathname, "generated", "openclawd.agent-store.json");
@@ -200,6 +207,26 @@ function loadJson<T>(url: URL): T {
   return JSON.parse(readFileSync(url, "utf8")) as T;
 }
 
+function loadEnvFile(url: URL): void {
+  try {
+    const content = readFileSync(url, "utf8");
+    for (const line of content.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const index = trimmed.indexOf("=");
+      if (index < 1) continue;
+      const key = trimmed.slice(0, index).trim();
+      let value = trimmed.slice(index + 1).trim();
+      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+      if (!process.env[key]) process.env[key] = value;
+    }
+  } catch {
+    // A repo-local env file is optional.
+  }
+}
+
 function loadJsonPath<T>(path: string): T {
   return JSON.parse(readFileSync(path, "utf8")) as T;
 }
@@ -225,6 +252,53 @@ function requireAgent(registry: Registry, id: string): AgentRecord {
 
 function unique<T>(values: T[]): T[] {
   return [...new Set(values)];
+}
+
+function hasRealValue(value: string | undefined): boolean {
+  if (!value) return false;
+  const normalized = value.trim().toLowerCase();
+  return normalized !== "" && normalized !== "replace_me" && normalized !== "missing";
+}
+
+function buildModelCapabilities() {
+  return {
+    activeProvider: process.env.OPENCLAWD_INFERENCE_PROVIDER ?? "auto",
+    providers: {
+      openai: {
+        configuredEnv: "OPENAI_API_KEY",
+        configured: hasRealValue(process.env.OPENAI_API_KEY),
+        model: OPENAI_MODEL,
+        endpoint: "https://api.openai.com/v1/responses",
+      },
+      openrouter: {
+        configuredEnv: "OPENROUTER_API_KEY",
+        configured: hasRealValue(process.env.OPENROUTER_API_KEY),
+        baseUrl: OPENROUTER_BASE_URL,
+        endpoint: `${OPENROUTER_BASE_URL}/chat/completions`,
+        defaultFreeModel: OPENROUTER_FREE_MODEL,
+        freeModelDiscovery: `${OPENROUTER_BASE_URL}/models`,
+        freeModelSelection: "models with :free ids or zero prompt/completion pricing",
+      },
+      xai: {
+        configuredEnv: "XAI_API_KEY",
+        configured: hasRealValue(process.env.XAI_API_KEY),
+        baseUrl: XAI_BASE_URL,
+        textModel: XAI_TEXT_MODEL,
+        chatEndpoint: `${XAI_BASE_URL}/chat/completions`,
+        imageModel: XAI_IMAGE_MODEL,
+        imageGenerationEndpoint: `${XAI_BASE_URL}/images/generations`,
+        imageEditEndpoint: `${XAI_BASE_URL}/images/edits`,
+        multiImageEditingMaxImages: 3,
+      },
+    },
+    fallbackOrder: ["openrouter", "xai", "openai"],
+    grokSwarm: [
+      { lane: "orchestrator", provider: "xai", model: XAI_TEXT_MODEL, role: "Clawd/HERMES coordination" },
+      { lane: "coding", provider: "xai", model: "grok-build-0.1", role: "gateway, Apigee, and storefront changes" },
+      { lane: "image", provider: "xai", model: XAI_IMAGE_MODEL, role: "Grok Imagine generation and image editing" },
+      { lane: "free-fallback", provider: "openrouter", model: OPENROUTER_FREE_MODEL, role: "zero-cost fulfillment fallback" },
+    ],
+  };
 }
 
 function agentPrompt(agent: AgentRecord, catalog: Catalog, registry: Registry): string {
@@ -368,6 +442,7 @@ function buildManifest(registry: Registry, agents: AgentRecord[], catalog: Catal
       settlementAsset: primaryGateway?.settlementAsset ?? "USDC",
       mode: primaryGateway?.mode ?? "real-store",
     },
+    ai: buildModelCapabilities(),
     merchant: catalog.merchant,
     commerce: {
       mode: "autonomous",
@@ -614,6 +689,17 @@ function buildValidationReport(): ValidationReport {
   if (manifest.commerce?.privacyEdge?.proxyBundle !== PRIVATE_PROXY_BUNDLE_PATH) {
     errors.push(`manifest privacy edge proxy bundle is ${manifest.commerce?.privacyEdge?.proxyBundle}, expected ${PRIVATE_PROXY_BUNDLE_PATH}`);
   }
+  if (manifest.ai?.providers?.openrouter?.defaultFreeModel !== OPENROUTER_FREE_MODEL) {
+    errors.push(
+      `manifest OpenRouter free model is ${manifest.ai?.providers?.openrouter?.defaultFreeModel}, expected ${OPENROUTER_FREE_MODEL}`,
+    );
+  }
+  if (manifest.ai?.providers?.xai?.textModel !== XAI_TEXT_MODEL) {
+    errors.push(`manifest xAI text model is ${manifest.ai?.providers?.xai?.textModel}, expected ${XAI_TEXT_MODEL}`);
+  }
+  if (manifest.ai?.providers?.xai?.imageModel !== XAI_IMAGE_MODEL) {
+    errors.push(`manifest xAI image model is ${manifest.ai?.providers?.xai?.imageModel}, expected ${XAI_IMAGE_MODEL}`);
+  }
   if (basename(session.manifest ?? "") !== "openclawd.agent-store.json") {
     errors.push(`session manifest pointer is not openclawd.agent-store.json: ${session.manifest}`);
   }
@@ -636,6 +722,15 @@ function buildValidationReport(): ValidationReport {
   }
   if (!process.env.X402_FEE_PAYER_WALLET) {
     warnings.push("X402_FEE_PAYER_WALLET is not set; generated manifests retain the wallet placeholder");
+  }
+  if (!hasRealValue(process.env.OPENROUTER_API_KEY)) {
+    warnings.push("OPENROUTER_API_KEY is not set; OpenRouter free-model fulfillment remains disabled");
+  }
+  if (!hasRealValue(process.env.XAI_API_KEY)) {
+    warnings.push("XAI_API_KEY is not set; Grok text and Grok Imagine image routes remain disabled");
+  }
+  if (!hasRealValue(process.env.OPENAI_API_KEY)) {
+    warnings.push("OPENAI_API_KEY is not set; OpenAI fallback fulfillment remains disabled");
   }
 
   return { ok: errors.length === 0, errors, warnings, checked };
@@ -703,6 +798,7 @@ function buildApigeeIntegration() {
       handoffs: session.handoffs,
     },
     x402: manifest.x402,
+    ai: manifest.ai,
     validation,
     deployChecklist: [
       "Replace the default target URL with the private OpenClawd gateway URL for the Apigee environment.",

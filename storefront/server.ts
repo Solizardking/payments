@@ -18,6 +18,13 @@ const DATA_DIR = join(ROOT, "storefront", "data");
 const LEDGER_PATH = join(DATA_DIR, "commerce-ledger.json");
 
 loadEnvFile(join(__dirname, ".env.local"));
+loadEnvFile(join(ROOT, ".env.local"));
+
+const OPENROUTER_BASE_URL = process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1";
+const XAI_BASE_URL = process.env.XAI_BASE_URL || "https://api.x.ai/v1";
+const OPENROUTER_DEFAULT_FREE_MODEL = process.env.OPENCLAWD_OPENROUTER_MODEL || "nvidia/nemotron-3-ultra-550b-a55b:free";
+const XAI_DEFAULT_TEXT_MODEL = process.env.OPENCLAWD_XAI_MODEL || "grok-4.3";
+const XAI_DEFAULT_IMAGE_MODEL = process.env.OPENCLAWD_XAI_IMAGE_MODEL || "grok-imagine-image-quality";
 
 const app = express();
 const port = Number(process.env.PORT || 4318);
@@ -37,6 +44,7 @@ app.get("/health", (_req, res) => {
 
 app.get("/api/config", (_req, res) => {
   const geminiKey = resolveGeminiKey();
+  const inferenceProvider = resolveInferenceProvider();
   const merchantSecretsPresent = [
     "MOONPAY_SECRET_KEY",
     "MOONPAY_WEBHOOK_KEY",
@@ -61,6 +69,11 @@ app.get("/api/config", (_req, res) => {
       moonPaySecretsLoadedServerSide: merchantSecretsPresent,
       geminiServerSideEnabled: hasRealValue(geminiKey),
       heliusServerSideEnabled: hasRealValue(process.env.HELIUS_RPC_URL),
+      openAiServerSideEnabled: hasRealValue(process.env.OPENAI_API_KEY),
+      openRouterServerSideEnabled: hasRealValue(process.env.OPENROUTER_API_KEY),
+      xaiServerSideEnabled: hasRealValue(process.env.XAI_API_KEY),
+      activeInferenceProvider: inferenceProvider.name,
+      activeInferenceModel: inferenceProvider.model,
     },
   });
 });
@@ -587,6 +600,120 @@ app.get("/api/moonpay/capabilities", async (_req, res) => {
   });
 });
 
+app.get("/api/ai/providers", async (_req, res) => {
+  const provider = resolveInferenceProvider();
+  const openRouterFreeModels = await discoverOpenRouterFreeModels();
+
+  res.json({
+    ok: true,
+    active: {
+      provider: provider.name,
+      model: provider.model,
+    },
+    providers: {
+      openai: {
+        configured: hasRealValue(process.env.OPENAI_API_KEY),
+        model: process.env.OPENCLAWD_OPENAI_MODEL || "gpt-4.1-mini",
+        endpoint: "https://api.openai.com/v1/responses",
+      },
+      openrouter: {
+        configured: hasRealValue(process.env.OPENROUTER_API_KEY),
+        model: OPENROUTER_DEFAULT_FREE_MODEL,
+        endpoint: `${OPENROUTER_BASE_URL}/chat/completions`,
+        freeModels: openRouterFreeModels,
+      },
+      xai: {
+        configured: hasRealValue(process.env.XAI_API_KEY),
+        textModel: XAI_DEFAULT_TEXT_MODEL,
+        imageModel: XAI_DEFAULT_IMAGE_MODEL,
+        chatEndpoint: `${XAI_BASE_URL}/chat/completions`,
+        imageGenerationEndpoint: `${XAI_BASE_URL}/images/generations`,
+        imageEditEndpoint: `${XAI_BASE_URL}/images/edits`,
+      },
+      gemini: {
+        configured: hasRealValue(resolveGeminiKey()),
+        model: "gemini-3-flash-preview",
+      },
+    },
+  });
+});
+
+app.post("/api/ai/grok/image/generate", async (req, res) => {
+  const prompt = cleanString(req.body?.prompt);
+  if (!hasRealValue(process.env.XAI_API_KEY)) {
+    res.status(400).json({ ok: false, error: "xai_api_key_missing" });
+    return;
+  }
+  if (!prompt) {
+    res.status(400).json({ ok: false, error: "prompt_required" });
+    return;
+  }
+
+  try {
+    const response = await fetch(`${XAI_BASE_URL}/images/generations`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.XAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: cleanString(req.body?.model) || XAI_DEFAULT_IMAGE_MODEL,
+        prompt,
+        aspect_ratio: cleanString(req.body?.aspectRatio) || undefined,
+        response_format: cleanString(req.body?.responseFormat) || undefined,
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    res.status(response.status).json({ ok: response.ok, provider: "xai", data });
+  } catch (error) {
+    res.status(502).json({ ok: false, error: "xai_image_generation_unreachable", detail: String(error) });
+  }
+});
+
+app.post("/api/ai/grok/image/edit", async (req, res) => {
+  const prompt = cleanString(req.body?.prompt);
+  const imageUrls = normalizeImageUrls(req.body?.imageUrls ?? req.body?.images ?? req.body?.imageUrl ?? req.body?.image);
+  if (!hasRealValue(process.env.XAI_API_KEY)) {
+    res.status(400).json({ ok: false, error: "xai_api_key_missing" });
+    return;
+  }
+  if (!prompt) {
+    res.status(400).json({ ok: false, error: "prompt_required" });
+    return;
+  }
+  if (imageUrls.length === 0) {
+    res.status(400).json({ ok: false, error: "image_url_required" });
+    return;
+  }
+  if (imageUrls.length > 3) {
+    res.status(400).json({ ok: false, error: "too_many_images", maxImages: 3 });
+    return;
+  }
+
+  const imagePayload = imageUrls.map((url) => ({ url, type: "image_url" }));
+
+  try {
+    const response = await fetch(`${XAI_BASE_URL}/images/edits`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.XAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: cleanString(req.body?.model) || XAI_DEFAULT_IMAGE_MODEL,
+        prompt,
+        image: imagePayload.length === 1 ? imagePayload[0] : imagePayload,
+        aspect_ratio: cleanString(req.body?.aspectRatio) || undefined,
+        response_format: cleanString(req.body?.responseFormat) || undefined,
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    res.status(response.status).json({ ok: response.ok, provider: "xai", data });
+  } catch (error) {
+    res.status(502).json({ ok: false, error: "xai_image_edit_unreachable", detail: String(error) });
+  }
+});
+
 app.get("/api/x402wtf/info", (_req, res) => {
   res.json({
     provider: "x402.wtf",
@@ -1017,6 +1144,56 @@ function cleanString(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function normalizeImageUrls(input: unknown): string[] {
+  const values = Array.isArray(input) ? input : [input];
+  return values
+    .flatMap((value) => {
+      if (typeof value === "string") return [value];
+      if (value && typeof value === "object" && "url" in value && typeof value.url === "string") return [value.url];
+      return [];
+    })
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
+async function discoverOpenRouterFreeModels(): Promise<Array<{ id: string; name: string; contextLength: number | null }>> {
+  try {
+    const response = await fetch(`${OPENROUTER_BASE_URL}/models`, {
+      headers: {
+        accept: "application/json",
+        ...(hasRealValue(process.env.OPENROUTER_API_KEY)
+          ? { Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}` }
+          : {}),
+      },
+    });
+    if (!response.ok) return fallbackOpenRouterFreeModels();
+    const data = await response.json();
+    const models = Array.isArray(data?.data) ? data.data : [];
+    return models
+      .filter((model: any) => {
+        const promptPrice = Number(model?.pricing?.prompt);
+        const completionPrice = Number(model?.pricing?.completion);
+        return model?.id?.endsWith(":free") || (promptPrice === 0 && completionPrice === 0);
+      })
+      .slice(0, 20)
+      .map((model: any) => ({
+        id: String(model.id),
+        name: String(model.name || model.id),
+        contextLength: typeof model.context_length === "number" ? model.context_length : null,
+      }));
+  } catch {
+    return fallbackOpenRouterFreeModels();
+  }
+}
+
+function fallbackOpenRouterFreeModels(): Array<{ id: string; name: string; contextLength: number | null }> {
+  return [
+    { id: "nvidia/nemotron-3-ultra-550b-a55b:free", name: "NVIDIA: Nemotron 3 Ultra (free)", contextLength: 1000000 },
+    { id: "nex-agi/nex-n2-pro:free", name: "Nex AGI: Nex-N2-Pro (free)", contextLength: 262144 },
+    { id: "nvidia/nemotron-3.5-content-safety:free", name: "NVIDIA: Nemotron 3.5 Content Safety (free)", contextLength: 128000 },
+  ];
+}
+
 function loadStoreContext(): { manifest: any; catalog: any; frontier: any } {
   return {
     manifest: readJson(MANIFEST_PATH) as any,
@@ -1354,7 +1531,8 @@ async function buildPaidInferenceArtifact(
       artifactType: "ai-fulfillment-unavailable",
       deliveredBy: input.role,
       generatedAt: new Date().toISOString(),
-      error: "No inference provider is configured. Set OPENAI_API_KEY or GEMINI_API_KEY in storefront/.env.local.",
+      error:
+        "No inference provider is configured. Set OPENROUTER_API_KEY, XAI_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY in storefront/.env.local or the repo root .env.local.",
     };
     appendLedgerEvent("ai_fulfillment_failed", {
       sessionId: session.id,
@@ -1376,7 +1554,7 @@ async function buildPaidInferenceArtifact(
       "Respond with valid JSON only.",
     ].join("\n");
 
-    const result = provider.name === "openai" ? await runOpenAiInference(prompt) : await runGeminiInference(prompt);
+    const result = await runProviderInference(provider, prompt);
     const artifact = {
       artifactType: "ai-fulfillment",
       deliveredBy: input.role,
@@ -1410,15 +1588,62 @@ async function buildPaidInferenceArtifact(
   }
 }
 
-function resolveInferenceProvider(): { name: "openai" | "gemini" | "none"; key: string | null } {
-  if (hasRealValue(process.env.OPENAI_API_KEY)) {
-    return { name: "openai", key: process.env.OPENAI_API_KEY || null };
+type InferenceProvider = {
+  name: "openrouter" | "xai" | "openai" | "gemini" | "none";
+  key: string | null;
+  model: string | null;
+};
+
+function resolveInferenceProvider(): InferenceProvider {
+  const requested = cleanString(process.env.OPENCLAWD_INFERENCE_PROVIDER).toLowerCase();
+  const candidates: InferenceProvider[] = [
+    {
+      name: "openrouter",
+      key: hasRealValue(process.env.OPENROUTER_API_KEY) ? process.env.OPENROUTER_API_KEY || null : null,
+      model: OPENROUTER_DEFAULT_FREE_MODEL,
+    },
+    {
+      name: "xai",
+      key: hasRealValue(process.env.XAI_API_KEY) ? process.env.XAI_API_KEY || null : null,
+      model: XAI_DEFAULT_TEXT_MODEL,
+    },
+    {
+      name: "openai",
+      key: hasRealValue(process.env.OPENAI_API_KEY) ? process.env.OPENAI_API_KEY || null : null,
+      model: process.env.OPENCLAWD_OPENAI_MODEL || "gpt-4.1-mini",
+    },
+    {
+      name: "gemini",
+      key: hasRealValue(resolveGeminiKey()) ? resolveGeminiKey() : null,
+      model: "gemini-3-flash-preview",
+    },
+  ];
+
+  const configured = candidates.filter((candidate) => candidate.key);
+  if (requested) {
+    const match = configured.find((candidate) => candidate.name === requested);
+    if (match) return match;
   }
-  const geminiKey = resolveGeminiKey();
-  if (hasRealValue(geminiKey)) {
-    return { name: "gemini", key: geminiKey };
+
+  return configured[0] || { name: "none", key: null, model: null };
+}
+
+async function runProviderInference(
+  provider: InferenceProvider,
+  prompt: string,
+): Promise<{ provider: string; model: string; content: any; usage: any }> {
+  switch (provider.name) {
+    case "openrouter":
+      return runOpenRouterInference(prompt, provider);
+    case "xai":
+      return runXaiInference(prompt, provider);
+    case "openai":
+      return runOpenAiInference(prompt);
+    case "gemini":
+      return runGeminiInference(prompt);
+    default:
+      throw new Error("inference_provider_not_configured");
   }
-  return { name: "none", key: null };
 }
 
 async function runOpenAiInference(prompt: string): Promise<{ provider: string; model: string; content: any; usage: any }> {
@@ -1447,6 +1672,80 @@ async function runOpenAiInference(prompt: string): Promise<{ provider: string; m
     provider: "openai",
     model: data.model,
     content: safeJsonParse(outputText) ?? { raw: outputText },
+    usage: data.usage ?? null,
+  };
+}
+
+async function runOpenRouterInference(
+  prompt: string,
+  provider: InferenceProvider,
+): Promise<{ provider: string; model: string; content: any; usage: any }> {
+  const response = await fetch(`${OPENROUTER_BASE_URL}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${provider.key}`,
+      "HTTP-Referer": process.env.OPENROUTER_SITE_URL || "http://127.0.0.1:4318",
+      "X-Title": process.env.OPENROUTER_APP_NAME || "OpenClawd Payments",
+    },
+    body: JSON.stringify({
+      model: provider.model || OPENROUTER_DEFAULT_FREE_MODEL,
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are OpenClawd, a private Solana-native merchant agent. Return compact valid JSON only.",
+        },
+        { role: "user", content: prompt },
+      ],
+      response_format: { type: "json_object" },
+    }),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(`openrouter_request_failed:${response.status}:${JSON.stringify(data)}`);
+  }
+  const content = data?.choices?.[0]?.message?.content || "";
+  return {
+    provider: "openrouter",
+    model: data.model || provider.model || OPENROUTER_DEFAULT_FREE_MODEL,
+    content: safeJsonParse(content) ?? { raw: content },
+    usage: data.usage ?? null,
+  };
+}
+
+async function runXaiInference(
+  prompt: string,
+  provider: InferenceProvider,
+): Promise<{ provider: string; model: string; content: any; usage: any }> {
+  const response = await fetch(`${XAI_BASE_URL}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${provider.key}`,
+    },
+    body: JSON.stringify({
+      model: provider.model || XAI_DEFAULT_TEXT_MODEL,
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are OpenClawd, a private Solana-native merchant agent. Return compact valid JSON only.",
+        },
+        { role: "user", content: prompt },
+      ],
+      response_format: { type: "json_object" },
+    }),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(`xai_request_failed:${response.status}:${JSON.stringify(data)}`);
+  }
+  const content = data?.choices?.[0]?.message?.content || "";
+  return {
+    provider: "xai",
+    model: data.model || provider.model || XAI_DEFAULT_TEXT_MODEL,
+    content: safeJsonParse(content) ?? { raw: content },
     usage: data.usage ?? null,
   };
 }

@@ -22,6 +22,68 @@
     "settlementAsset": "USDC",
     "mode": "real-store"
   },
+  "ai": {
+    "activeProvider": "auto",
+    "providers": {
+      "openai": {
+        "configuredEnv": "OPENAI_API_KEY",
+        "configured": false,
+        "model": "gpt-4.1-mini",
+        "endpoint": "https://api.openai.com/v1/responses"
+      },
+      "openrouter": {
+        "configuredEnv": "OPENROUTER_API_KEY",
+        "configured": false,
+        "baseUrl": "https://openrouter.ai/api/v1",
+        "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+        "defaultFreeModel": "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "freeModelDiscovery": "https://openrouter.ai/api/v1/models",
+        "freeModelSelection": "models with :free ids or zero prompt/completion pricing"
+      },
+      "xai": {
+        "configuredEnv": "XAI_API_KEY",
+        "configured": false,
+        "baseUrl": "https://api.x.ai/v1",
+        "textModel": "grok-4.3",
+        "chatEndpoint": "https://api.x.ai/v1/chat/completions",
+        "imageModel": "grok-imagine-image-quality",
+        "imageGenerationEndpoint": "https://api.x.ai/v1/images/generations",
+        "imageEditEndpoint": "https://api.x.ai/v1/images/edits",
+        "multiImageEditingMaxImages": 3
+      }
+    },
+    "fallbackOrder": [
+      "openrouter",
+      "xai",
+      "openai"
+    ],
+    "grokSwarm": [
+      {
+        "lane": "orchestrator",
+        "provider": "xai",
+        "model": "grok-4.3",
+        "role": "Clawd/HERMES coordination"
+      },
+      {
+        "lane": "coding",
+        "provider": "xai",
+        "model": "grok-build-0.1",
+        "role": "gateway, Apigee, and storefront changes"
+      },
+      {
+        "lane": "image",
+        "provider": "xai",
+        "model": "grok-imagine-image-quality",
+        "role": "Grok Imagine generation and image editing"
+      },
+      {
+        "lane": "free-fallback",
+        "provider": "openrouter",
+        "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "role": "zero-cost fulfillment fallback"
+      }
+    ]
+  },
   "merchant": {
     "id": "openclawd-merchant",
     "name": "OpenClawd Merchant",
