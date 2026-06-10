@@ -283,11 +283,12 @@ app.post("/api/checkout/session", (req, res) => {
   }
 
   const protocol = pickProtocol(req.body?.protocol, product.protocols || []);
+  const quote = selectQuote(product, req.body?.asset);
   const buyerEmail = cleanString(req.body?.buyerEmail) || "judge@openclawd.demo";
   const buyerName = cleanString(req.body?.buyerName) || "Hackathon Judge";
   const buyerType = cleanString(req.body?.buyerType) || "individual";
-  const amount = product.price?.amount || "0.10";
-  const asset = product.price?.asset || "USDC";
+  const amount = quote.amount;
+  const asset = quote.asset;
 
   const session: CheckoutSession = {
     id: `sess_${crypto.randomUUID().slice(0, 8)}`,
@@ -299,6 +300,7 @@ app.post("/api/checkout/session", (req, res) => {
     protocol,
     amount,
     asset,
+    settlementMint: quote.mint,
     status: "quoted",
     createdAt: new Date().toISOString(),
     merchantPath: product.merchantPath,
@@ -810,8 +812,9 @@ app.post("/api/x402wtf/checkout", async (req, res) => {
   const buyerWallet = cleanString(req.body?.buyerWallet) || "";
   const buyerEmail = cleanString(req.body?.buyerEmail) || "judge@x402.wtf";
   const buyerName = cleanString(req.body?.buyerName) || "Hackathon Judge";
-  const amount = product.price?.amount || "0.10";
-  const asset = product.price?.asset || "USDC";
+  const quote = selectQuote(product, req.body?.asset);
+  const amount = quote.amount;
+  const asset = quote.asset;
   const x402 = product.x402 ?? {
     endpoint: "https://x402.wtf/payments",
     challenge: `/x402/${product.id.replace(/^prod-/, "")}`,
@@ -824,6 +827,7 @@ app.post("/api/x402wtf/checkout", async (req, res) => {
     merchantId: catalogMerchantId(store),
     amount,
     asset,
+    settlementMint: quote.mint || null,
     network: "solana",
     buyer: { wallet: buyerWallet, email: buyerEmail, name: buyerName },
     challenge: x402.challenge,
@@ -838,8 +842,9 @@ app.post("/api/x402wtf/checkout", async (req, res) => {
       headers: {
         "content-type": "application/json",
         "x-openclawd-store": "openclawd-merchant",
-        "x-openclawd-product": product.id,
-        "user-agent": "openclawd-storefront/1.0",
+      "x-openclawd-product": product.id,
+      "x-openclawd-asset": asset,
+      "user-agent": "openclawd-storefront/1.0",
       },
       body: JSON.stringify(challengePayload),
     });
@@ -875,6 +880,7 @@ app.post("/api/x402wtf/checkout", async (req, res) => {
       protocol: "x402",
       amount,
       asset,
+      settlementMint: quote.mint,
       status: "challenged",
       createdAt: new Date().toISOString(),
       merchantPath: product.merchantPath,
@@ -1236,8 +1242,59 @@ function pickProtocol(requested: unknown, supported: string[]): string {
   return supported.includes(clean) ? clean : supported[0] || "x402";
 }
 
+function selectQuote(product: any, requestedAsset: unknown): { amount: string; asset: string; mint?: string } {
+  const asset = cleanString(requestedAsset).toUpperCase();
+  if (asset === "CLAWD" && product.clawdPrice?.amount) {
+    return {
+      amount: String(product.clawdPrice.amount),
+      asset: "CLAWD",
+      mint: product.clawdPrice.mint,
+    };
+  }
+  return {
+    amount: String(product.price?.amount || "0.10"),
+    asset: String(product.price?.asset || "USDC"),
+  };
+}
+
 function buildFulfillmentPreview(product: any): { title: string; bullets: string[] } {
   switch (product.id) {
+    case "prod-openrouter-free-inference":
+      return {
+        title: "OpenRouter Free-Model Inference",
+        bullets: [
+          "Discovers available free OpenRouter models",
+          "Routes paid fulfillment through the configured :free default",
+          "Falls back without exposing provider keys to the browser",
+        ],
+      };
+    case "prod-grok-swarm-session":
+      return {
+        title: "Grok Swarm Session",
+        bullets: [
+          "Grok orchestration lane for Clawd and HERMES",
+          "Grok Build planning for implementation tasks",
+          "x402 merchant routing and fulfillment summary",
+        ],
+      };
+    case "prod-grok-imagine-edit":
+      return {
+        title: "Grok Imagine Image Edit",
+        bullets: [
+          "JSON-native xAI image edit request",
+          "Supports public URLs or base64 data URIs",
+          "Accepts up to three source images",
+        ],
+      };
+    case "prod-clawd-agent-seat":
+      return {
+        title: "CLAWD Agent Seat",
+        bullets: [
+          "Access to Clawd, Dexter, Eliza, HERMES, Ralph, and x402wtf",
+          "USDC checkout or CLAWD-denominated token entry",
+          "Agent lane assignment and merchant handoff",
+        ],
+      };
     case "prod-ooda-signal-pack":
       return {
         title: "OODA Signal Pack Delivery",
@@ -1287,6 +1344,38 @@ function buildSessionNarrative(product: any, protocol: string): string[] {
 }
 
 async function buildFulfillmentArtifact(session: CheckoutSession): Promise<any> {
+  if (session.productId === "prod-openrouter-free-inference") {
+    return buildPaidInferenceArtifact(session, {
+      role: "OpenRouter Inference Desk",
+      task:
+        "Produce a compact paid inference fulfillment summary. Return JSON with keys modelRoute, outputSummary, metering, and buyerNextStep.",
+    });
+  }
+
+  if (session.productId === "prod-grok-swarm-session") {
+    return buildPaidInferenceArtifact(session, {
+      role: "Grok Swarm",
+      task:
+        "Produce a compact Grok swarm session plan for a paid merchant operator. Return JSON with keys swarmLanes, orchestrationPlan, risks, and nextActions.",
+    });
+  }
+
+  if (session.productId === "prod-grok-imagine-edit") {
+    return buildPaidInferenceArtifact(session, {
+      role: "Grok Imagine",
+      task:
+        "Produce a compact image-edit job receipt and prompt plan. Return JSON with keys imageModel, acceptedInputs, editPlan, and deliveryFormat.",
+    });
+  }
+
+  if (session.productId === "prod-clawd-agent-seat") {
+    return buildPaidInferenceArtifact(session, {
+      role: "CLAWD Agent Seat",
+      task:
+        "Produce a compact agent-seat activation receipt. Return JSON with keys admittedAgents, accessRules, tokenGate, and firstTask.",
+    });
+  }
+
   if (session.productId === "prod-ooda-signal-pack") {
     return buildPaidInferenceArtifact(session, {
       role: "Dark Ralph",
@@ -1405,6 +1494,7 @@ type CheckoutSession = {
   protocol: string;
   amount: string;
   asset: string;
+  settlementMint?: string;
   status: "quoted" | "funded";
   createdAt: string;
   fundedAt?: string;
@@ -1426,6 +1516,7 @@ type X402Session = {
   protocol: "x402";
   amount: string;
   asset: string;
+  settlementMint?: string;
   status: "challenged" | "verified";
   createdAt: string;
   verifiedAt?: string;

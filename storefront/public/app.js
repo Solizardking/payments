@@ -13,6 +13,7 @@ const state = {
   x402Registry: null,
   x402Session: null,
   x402Agents: null,
+  aiProviders: null,
 };
 
 init().catch((error) => {
@@ -41,6 +42,8 @@ async function init() {
   ]);
   state.moonpayCapabilities = await capabilitiesRes.json();
   state.moonpayWorkbench = await workbenchRes.json();
+  const aiProvidersRes = await fetch("/api/ai/providers");
+  state.aiProviders = await aiProvidersRes.json();
 
   renderMetrics();
   renderHero();
@@ -59,6 +62,7 @@ async function init() {
   renderCheckoutLab();
   renderJudgeMode();
   renderLiveAgentState();
+  renderAiProviders();
   bindPlaces();
   bindMoonPay();
   bindCheckoutLab();
@@ -186,7 +190,9 @@ function renderProducts() {
           <p>${escapeHtml(product.description)}</p>
           <div class="meta-line">
             <span class="chip">${escapeHtml(product.price.amount)} ${escapeHtml(product.price.asset)}</span>
+            ${product.clawdPrice ? `<span class="chip chip-strong">${escapeHtml(product.clawdPrice.amount)} ${escapeHtml(product.clawdPrice.asset)}</span>` : ""}
             <span class="chip">${escapeHtml(humanize(product.category))}</span>
+            ${product.inference ? `<span class="chip">${escapeHtml(product.inference.provider)} · ${escapeHtml(product.inference.model)}</span>` : ""}
             ${product.protocols.map((protocol) => `<span class="chip">${escapeHtml(protocol)}</span>`).join("")}
           </div>
           <div class="meta-line">
@@ -350,6 +356,21 @@ function renderLiveAgentState() {
     : "HELIUS_RPC_URL is missing for wallet intelligence.";
 }
 
+function renderAiProviders() {
+  const box = document.getElementById("ai-provider-output");
+  if (!box) return;
+  const providers = state.aiProviders?.providers || {};
+  const rows = [
+    ["Active", `${state.aiProviders?.active?.provider || "none"} / ${state.aiProviders?.active?.model || "none"}`],
+    ["OpenRouter", providers.openrouter?.configured ? `ready (${providers.openrouter.model})` : `key missing (${providers.openrouter?.model || "not configured"})`],
+    ["OpenRouter Free Models", String(providers.openrouter?.freeModels?.length || 0)],
+    ["xAI Grok", providers.xai?.configured ? `ready (${providers.xai.textModel})` : `key missing (${providers.xai?.textModel || "not configured"})`],
+    ["Grok Imagine", providers.xai?.imageModel || "not configured"],
+    ["OpenAI", providers.openai?.configured ? `ready (${providers.openai.model})` : "key missing"],
+  ];
+  box.textContent = rows.map(([label, value]) => `${label}: ${value}`).join("\n");
+}
+
 function renderFrontier() {
   const metricsBox = document.getElementById("frontier-metrics");
   const groupsBox = document.getElementById("frontier-groups");
@@ -410,6 +431,7 @@ function bindMoonPay() {
 
 function bindCheckoutLab() {
   document.getElementById("checkout-product").addEventListener("change", updateCheckoutProtocols);
+  document.getElementById("checkout-product").addEventListener("change", updateCheckoutAssets);
   document.getElementById("checkout-create").addEventListener("click", createCheckoutSession);
   document.getElementById("checkout-fund").addEventListener("click", fundCheckoutSession);
 }
@@ -419,6 +441,7 @@ function bindJudgeMode() {
     const firstProduct = state.store.catalog.products[0];
     document.getElementById("checkout-product").value = firstProduct.id;
     updateCheckoutProtocols();
+    updateCheckoutAssets();
     document.getElementById("checkout-buyer-name").value = "Hackathon Judge";
     document.getElementById("checkout-buyer-email").value = "judge@openclawd.demo";
     document.getElementById("checkout-session").innerHTML =
@@ -511,12 +534,29 @@ function updateCheckoutProtocols() {
   protocolSelect.innerHTML = (product?.protocols || [])
     .map((protocol) => `<option value="${escapeHtml(protocol)}">${escapeHtml(protocol)}</option>`)
     .join("");
+  updateCheckoutAssets();
+}
+
+function updateCheckoutAssets() {
+  const productId = document.getElementById("checkout-product").value;
+  const product = state.store.catalog.products.find((entry) => entry.id === productId);
+  const assetSelect = document.getElementById("checkout-asset");
+  const options = [
+    { asset: product?.price?.asset || "USDC", label: `${product?.price?.amount || "0.10"} ${product?.price?.asset || "USDC"}` },
+    ...(product?.clawdPrice
+      ? [{ asset: "CLAWD", label: `${product.clawdPrice.amount} CLAWD` }]
+      : []),
+  ];
+  assetSelect.innerHTML = options
+    .map((option) => `<option value="${escapeHtml(option.asset)}">${escapeHtml(option.label)}</option>`)
+    .join("");
 }
 
 async function createCheckoutSession() {
   const payload = {
     productId: document.getElementById("checkout-product").value,
     protocol: document.getElementById("checkout-protocol").value,
+    asset: document.getElementById("checkout-asset").value,
     buyerName: document.getElementById("checkout-buyer-name").value,
     buyerEmail: document.getElementById("checkout-buyer-email").value,
   };
@@ -558,6 +598,8 @@ function renderCheckoutSession() {
     ["Product", session.productTitle],
     ["Status", session.status],
     ["Protocol", session.protocol],
+    ["Amount", `${session.amount} ${session.asset}`],
+    ...(session.settlementMint ? [["Mint", session.settlementMint]] : []),
     ["Buyer", `${session.buyerName} <${session.buyerEmail}>`],
     ["MoonPay", session.moonPayUrl ? "ready" : "not configured"],
     ...(session.narrative || []).map((line, index) => [`Step ${index + 1}`, line]),

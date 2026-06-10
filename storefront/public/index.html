@@ -92,6 +92,10 @@
                 <select id="checkout-protocol"></select>
               </label>
               <label class="field">
+                <span>Asset</span>
+                <select id="checkout-asset"></select>
+              </label>
+              <label class="field">
                 <span>Buyer Name</span>
                 <input id="checkout-buyer-name" type="text" value="Hackathon Judge" />
               </label>
@@ -255,6 +259,10 @@
                 <select id="x402-product"></select>
               </label>
               <label class="field">
+                <span>Asset</span>
+                <select id="x402-asset"></select>
+              </label>
+              <label class="field">
                 <span>Buyer Wallet (optional)</span>
                 <input id="x402-buyer-wallet" type="text" value="GyZGtA7hEThVHZpj52XC9jX15a8ABtDHTwELjFRWEts4" />
               </label>
@@ -289,10 +297,14 @@
         <div class="section-head">
           <div>
             <p class="section-label">Live Agents</p>
-            <h2>Real Gemini and Helius-backed operator actions.</h2>
+            <h2>Inference, Grok swarm, Gemini, and Helius-backed operator actions.</h2>
           </div>
         </div>
         <div class="checkout-grid">
+          <article class="panel checkout-form-panel">
+            <p class="section-label">Inference Provider Market</p>
+            <pre class="artifact-view" id="ai-provider-output">Provider status will appear here.</pre>
+          </article>
           <article class="panel checkout-form-panel">
             <p class="section-label">Gemini Merchant Agent</p>
             <label class="field">

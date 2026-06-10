@@ -27,10 +27,17 @@ type MerchantProduct = {
   category: string;
   description: string;
   price: { amount: string; asset: string };
+  clawdPrice?: { amount: string; asset: string; mint: string };
   protocols: string[];
   merchantPath: string;
   digital: boolean;
   googleMerchant?: Record<string, string | boolean>;
+  inference?: {
+    provider: string;
+    model: string;
+    endpoint: string;
+    metering: string;
+  };
   x402?: {
     endpoint: string;
     challenge: string;
