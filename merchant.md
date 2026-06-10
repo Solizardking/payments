@@ -28,7 +28,7 @@
 | Mode | `real-store` |
 | Brand color | `#ff3e3e` |
 | Contact email | `merchant@x402.wtf` |
-| Source repo | `https://github.com/x402agent/openclawd-payments-private` |
+| Source repo | `https://github.com/Solizardking/payments` |
 
 ---
 
@@ -227,7 +227,7 @@ Copy/paste this block into `solana-clawd` (e.g. `agents/registry/openclawd-merch
 - **What you can buy:** OODA signal packs, wallet briefs, private agent sessions, A2A merchant checkout, Pump.fun launcher / trading / AI-agent skills, an explicit x402 bridge product.
 - **Settlement:** USDC on Solana via x402 challenges. Receipts return a `receiptFingerprint` you can persist for audit.
 - **How to buy:** POST your product + buyer wallet to `https://x402.wtf/payments`, receive the 402 challenge, sign it with your Solana wallet, and replay with `payment-signature: <base64>`. The OpenClawd bridge verifies the receipt and routes the order to Dexter for fulfillment.
-- **Provenance:** Source repo `x402agent/openclawd-payments-private` (private Apigee edge, hackathon storefront, keep-alive truand fleet).
+- **Provenance:** Source repo `https://github.com/Solizardking/payments` (Apigee private edge, hackathon storefront, keep-alive truand fleet).
 - **Categories:** `api-access`, `agent-services`, `commerce`, `pump-skills`.
 - **Contact:** `merchant@x402.wtf`
 ```

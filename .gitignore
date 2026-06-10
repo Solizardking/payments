@@ -9,4 +9,3 @@ generated/sessions/
 generated/*.provisioned.json
 *.log
 .DS_Store
-.env.example
