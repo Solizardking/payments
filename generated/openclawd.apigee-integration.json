@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "generatedAt": "2026-06-10T02:32:52.897Z",
+  "generatedAt": "2026-06-10T21:44:19.244Z",
   "status": "ready-for-private-apigee-deploy",
   "store": {
     "id": "universal-autonomous-commerce",
@@ -15,7 +15,7 @@
     "proxyDescriptor": "apigee/apiproxy/OpenClawdPrivateStore.xml",
     "debugMask": "apigee/apiproxy/debugmask.json",
     "storeManifest": "generated/openclawd.agent-store.json",
-    "session": "generated/sessions/store-20260609-150811.json",
+    "session": "generated/sessions/store-20260610-214416.json",
     "truandFleet": "generated/truand-fleet.json"
   },
   "apigee": {
@@ -155,8 +155,8 @@
     ]
   },
   "session": {
-    "id": "store-20260609-150811",
-    "createdAt": "2026-06-09T15:08:11.511Z",
+    "id": "store-20260610-214416",
+    "createdAt": "2026-06-10T21:44:16.554Z",
     "handoffs": [
       "eliza -> clawd for high-intent or complex customer requests",
       "clawd -> dexter when a buyer is ready for checkout or fulfillment",
@@ -350,7 +350,7 @@
       "/Users/8bit/PAYMENTS/apigee/apiproxy/policies/RF-X402Challenge.xml",
       "/Users/8bit/PAYMENTS/generated/openclawd.agent-store.json",
       "/Users/8bit/PAYMENTS/generated/truand-fleet.json",
-      "/Users/8bit/PAYMENTS/generated/sessions/store-20260609-150811.json"
+      "/Users/8bit/PAYMENTS/generated/sessions/store-20260610-214416.json"
     ]
   },
   "deployChecklist": [
