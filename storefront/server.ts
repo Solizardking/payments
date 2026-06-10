@@ -241,11 +241,11 @@ app.get("/api/demo", (_req, res) => {
 
   res.json({
     headline: {
-      title: "Universal Autonomous Commerce for Solana-Native Agent Work",
+      title: "Clawd Pay turns Solana AI products into a premium merchant surface",
       subtitle:
-        "A storefront where paid agent services, programmable checkout, and private settlement infrastructure converge in one demo.",
+        "A storefront where paid inference, private settlement, and operator chat converge into one polished demo.",
       judgeAngle:
-        "This wins by showing a real monetization system for agents: discoverable products, funding rails, routing logic, and enterprise posture.",
+        "This wins by showing a real merchant layer for AI products on Solana: discovery, checkout, conversation, and settlement.",
     },
     summary: {
       productCount: products.length,

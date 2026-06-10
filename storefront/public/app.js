@@ -14,7 +14,26 @@ const state = {
   x402Session: null,
   x402Agents: null,
   aiProviders: null,
+  chatMessages: [],
+  chatLoading: false,
 };
+
+const SOLANA_AI_PRODUCT_IDS = [
+  "prod-openrouter-free-inference",
+  "prod-grok-swarm-session",
+  "prod-grok-imagine-edit",
+  "prod-clawd-agent-seat",
+  "prod-wallet-brief",
+  "prod-private-agent-session",
+  "prod-pump-ai-agents",
+];
+
+const X402_CHAT_PROMPTS = [
+  "Register the merchant and quote OODA.",
+  "Compare Grok Swarm vs Grok Imagine.",
+  "Recommend the best Solana AI product.",
+  "Summarize private payments and settlement.",
+];
 
 init().catch((error) => {
   console.error(error);
@@ -52,6 +71,7 @@ async function init() {
   renderOffers();
   renderCategories();
   renderProducts();
+  renderSolanaAiProducts();
   renderProtocolMatrix();
   renderRoadmap();
   renderMoonPay();
@@ -206,9 +226,47 @@ function renderProducts() {
   document.querySelectorAll("[data-buy-product]").forEach((node) => {
     node.addEventListener("click", () => {
       const productId = node.getAttribute("data-buy-product");
-      const select = document.getElementById("checkout-product");
-      select.value = productId;
-      updateCheckoutProtocols();
+      focusCheckoutProduct(productId);
+    });
+  });
+}
+
+function renderSolanaAiProducts() {
+  const catalogProducts = state.store.catalog.products || [];
+  const products = SOLANA_AI_PRODUCT_IDS.map((id) => catalogProducts.find((entry) => entry.id === id)).filter(Boolean);
+  const box = document.getElementById("ai-products");
+  if (!box) return;
+
+  box.innerHTML = products
+    .map(
+      (product) => `
+        <article class="product product-spotlight">
+          <div class="frontier-head">
+            <div>
+              <p class="section-label">${escapeHtml(humanize(product.category))}</p>
+              <h3>${escapeHtml(product.title)}</h3>
+            </div>
+            <span class="chip">${escapeHtml(product.price.amount)} ${escapeHtml(product.price.asset)}</span>
+          </div>
+          <p>${escapeHtml(product.description)}</p>
+          <div class="meta-line">
+            ${product.inference ? `<span class="chip chip-strong">${escapeHtml(product.inference.provider)} · ${escapeHtml(product.inference.model)}</span>` : ""}
+            ${product.clawdPrice ? `<span class="chip">${escapeHtml(product.clawdPrice.amount)} ${escapeHtml(product.clawdPrice.asset)}</span>` : ""}
+            ${product.protocols.map((protocol) => `<span class="chip">${escapeHtml(protocol)}</span>`).join("")}
+          </div>
+          <div class="meta-line">
+            <button class="button button-secondary button-small" data-ai-buy-product="${escapeHtml(product.id)}" type="button">Open in Checkout</button>
+            <span class="chip">Path ${escapeHtml(product.merchantPath)}</span>
+          </div>
+        </article>
+      `,
+    )
+    .join("");
+
+  document.querySelectorAll("[data-ai-buy-product]").forEach((node) => {
+    node.addEventListener("click", () => {
+      const productId = node.getAttribute("data-ai-buy-product");
+      focusCheckoutProduct(productId);
     });
   });
 }
@@ -366,15 +424,55 @@ function renderAiProviders() {
   const box = document.getElementById("ai-provider-output");
   if (!box) return;
   const providers = state.aiProviders?.providers || {};
-  const rows = [
-    ["Active", `${state.aiProviders?.active?.provider || "none"} / ${state.aiProviders?.active?.model || "none"}`],
-    ["OpenRouter", providers.openrouter?.configured ? `ready (${providers.openrouter.model})` : `key missing (${providers.openrouter?.model || "not configured"})`],
-    ["OpenRouter Free Models", String(providers.openrouter?.freeModels?.length || 0)],
-    ["xAI Grok", providers.xai?.configured ? `ready (${providers.xai.textModel})` : `key missing (${providers.xai?.textModel || "not configured"})`],
-    ["Grok Imagine", providers.xai?.imageModel || "not configured"],
-    ["OpenAI", providers.openai?.configured ? `ready (${providers.openai.model})` : "key missing"],
+  const active = state.aiProviders?.active || {};
+  const cards = [
+    {
+      title: "Active",
+      status: `${active.provider || "none"} · ${active.model || "no model"}`,
+      detail: "Current server-side inference choice for merchant fulfillment.",
+      chips: [state.aiProviders?.ok ? "Ready" : "Offline"],
+    },
+    {
+      title: "OpenRouter",
+      status: providers.openrouter?.configured ? "Configured" : "Missing key",
+      detail: providers.openrouter?.model || "No OpenRouter model configured.",
+      chips: [`Free models: ${providers.openrouter?.freeModels?.length || 0}`],
+    },
+    {
+      title: "xAI Grok",
+      status: providers.xai?.configured ? "Configured" : "Missing key",
+      detail: providers.xai?.textModel || "No Grok text model configured.",
+      chips: [providers.xai?.imageModel || "No image model"],
+    },
+    {
+      title: "OpenAI",
+      status: providers.openai?.configured ? "Configured" : "Missing key",
+      detail: providers.openai?.model || "No OpenAI model configured.",
+      chips: ["Responses API"],
+    },
+    {
+      title: "Gemini",
+      status: providers.gemini?.configured ? "Configured" : "Missing key",
+      detail: providers.gemini?.model || "No Gemini model configured.",
+      chips: ["Merchant agent"],
+    },
   ];
-  box.textContent = rows.map(([label, value]) => `${label}: ${value}`).join("\n");
+  box.innerHTML = cards
+    .map(
+      (card) => `
+        <article class="provider-card">
+          <div class="frontier-head">
+            <h3>${escapeHtml(card.title)}</h3>
+            <span class="chip chip-strong">${escapeHtml(card.status)}</span>
+          </div>
+          <p>${escapeHtml(card.detail)}</p>
+          <div class="meta-line">
+            ${card.chips.map((chip) => `<span class="chip">${escapeHtml(chip)}</span>`).join("")}
+          </div>
+        </article>
+      `,
+    )
+    .join("");
 }
 
 function renderFrontier() {
@@ -686,6 +784,9 @@ async function loadX402() {
   renderX402StoreInfo();
   renderX402Registry();
   renderX402CheckoutForm();
+  seedX402Chat();
+  renderX402ChatPrompts();
+  renderX402ChatThread();
 
   statusBox.textContent = state.x402Info?.registration?.status
     ? `registered · ${state.x402Info.registration.merchantId}`
@@ -770,9 +871,138 @@ function updateX402Assets() {
     .join("");
 }
 
+function focusCheckoutProduct(productId) {
+  if (!productId) return;
+  const checkoutSelect = document.getElementById("checkout-product");
+  if (checkoutSelect) {
+    checkoutSelect.value = productId;
+    updateCheckoutProtocols();
+  }
+
+  const x402Select = document.getElementById("x402-product");
+  if (x402Select) {
+    x402Select.value = productId;
+    updateX402Assets();
+  }
+
+  document.getElementById("checkout-lab")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function seedX402Chat() {
+  if (state.chatMessages.length > 0) return;
+  state.chatMessages = [
+    {
+      id: `chat_${Date.now()}_welcome`,
+      role: "assistant",
+      agentId: "clawd",
+      label: "Clawd",
+      meta: "merchant concierge",
+      content:
+        "Welcome to Clawd Pay. Ask for a merchant quote, a Solana AI product recommendation, or a registry update. The conversation stays readable and operator-grade.",
+    },
+  ];
+}
+
+function renderX402ChatPrompts() {
+  const box = document.getElementById("x402-chat-prompts");
+  if (!box) return;
+  box.innerHTML = X402_CHAT_PROMPTS.map(
+    (prompt) => `<button class="chip chip-button" data-chat-prompt="${escapeHtml(prompt)}" type="button">${escapeHtml(prompt)}</button>`,
+  ).join("");
+}
+
+function renderX402ChatThread() {
+  const thread = document.getElementById("x402-chat-thread");
+  if (!thread) return;
+  thread.innerHTML = state.chatMessages
+    .map((message) => renderChatBubble(message))
+    .join("");
+  scrollChatThread();
+}
+
+function renderChatBubble(message) {
+  const roleClass = message.role === "user" ? "chat-message-user" : message.role === "system" ? "chat-message-system" : "chat-message-assistant";
+  const label = message.label || humanize(message.agentId || message.role || "Message");
+  const meta = message.meta || (message.role === "user" ? "you" : message.agentId || "assistant");
+  const content = message.loading
+    ? `<span class="chat-loading"><span></span><span></span><span></span></span>`
+    : escapeHtml(message.content || "").replace(/\n/g, "<br />");
+
+  return `
+    <article class="chat-message ${roleClass} ${message.loading ? "is-loading" : ""} ${message.error ? "is-error" : ""}">
+      <div class="chat-message-meta">
+        <span>${escapeHtml(label)}</span>
+        <span>${escapeHtml(meta)}</span>
+      </div>
+      <div class="chat-bubble">${content}</div>
+    </article>
+  `;
+}
+
+function scrollChatThread() {
+  const thread = document.getElementById("x402-chat-thread");
+  if (!thread) return;
+  thread.scrollTop = thread.scrollHeight;
+}
+
+function appendChatMessage(message) {
+  const entry = {
+    id: message.id || `chat_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    ...message,
+  };
+  state.chatMessages.push(entry);
+  renderX402ChatThread();
+  return entry.id;
+}
+
+function updateChatMessage(id, patch) {
+  state.chatMessages = state.chatMessages.map((message) => (message.id === id ? { ...message, ...patch } : message));
+  renderX402ChatThread();
+}
+
+function clearX402Chat() {
+  state.chatLoading = false;
+  state.chatMessages = [];
+  seedX402Chat();
+  document.getElementById("x402-chat-message").value = X402_CHAT_PROMPTS[0];
+  renderX402ChatThread();
+}
+
+function formatX402ChatReply(data) {
+  const reply = data?.reply ?? data?.message ?? data?.content ?? data?.data ?? null;
+  if (typeof reply === "string") return reply;
+  if (reply && typeof reply === "object") {
+    if (typeof reply.message === "string") return reply.message;
+    if (typeof reply.content === "string") return reply.content;
+    if (typeof reply.text === "string") return reply.text;
+    if (Array.isArray(reply.choices) && reply.choices[0]?.message?.content) return reply.choices[0].message.content;
+    if (typeof reply.response_text === "string") return reply.response_text;
+    return JSON.stringify(reply, null, 2);
+  }
+  if (data?.ok === false) {
+    const reason = data?.error || "x402_chat_failed";
+    const detail = data?.detail ? `\n${JSON.stringify(data.detail, null, 2)}` : "";
+    return `${reason}${detail}`;
+  }
+  return JSON.stringify(data, null, 2);
+}
+
 function bindX402() {
   document.getElementById("x402-registry-register").addEventListener("click", registerX402Merchant);
   document.getElementById("x402-chat-run").addEventListener("click", sendX402Chat);
+  document.getElementById("x402-chat-reset").addEventListener("click", clearX402Chat);
+  document.getElementById("x402-chat-prompts").addEventListener("click", (event) => {
+    const target = event.target.closest("[data-chat-prompt]");
+    if (!target) return;
+    document.getElementById("x402-chat-message").value = target.getAttribute("data-chat-prompt") || "";
+    document.getElementById("x402-chat-message").focus();
+  });
+  document.getElementById("x402-chat-message").addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      sendX402Chat();
+    }
+  });
   document.getElementById("x402-create").addEventListener("click", createX402Session);
   document.getElementById("x402-verify").addEventListener("click", verifyX402Session);
 }
@@ -790,18 +1020,54 @@ async function registerX402Merchant() {
 }
 
 async function sendX402Chat() {
-  const out = document.getElementById("x402-chat-output");
-  out.textContent = "Sending x402 agent chat...";
-  const response = await fetch("/api/x402wtf/agent/chat", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      agentId: document.getElementById("x402-chat-agent").value,
-      message: document.getElementById("x402-chat-message").value,
-    }),
+  if (state.chatLoading) return;
+  const textarea = document.getElementById("x402-chat-message");
+  const message = textarea.value.trim();
+  if (!message) return;
+  const agentId = document.getElementById("x402-chat-agent").value;
+  appendChatMessage({
+    role: "user",
+    label: "You",
+    meta: "operator prompt",
+    content: message,
   });
-  const data = await response.json();
-  out.textContent = JSON.stringify(data, null, 2);
+  textarea.value = "";
+  state.chatLoading = true;
+  const loadingId = appendChatMessage({
+    role: "assistant",
+    agentId,
+    label: humanize(agentId),
+    meta: "x402.wtf",
+    content: "Thinking…",
+    loading: true,
+  });
+  try {
+    const response = await fetch("/api/x402wtf/agent/chat", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        agentId,
+        message,
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    const replyText = formatX402ChatReply(data);
+    updateChatMessage(loadingId, {
+      loading: false,
+      error: !response.ok || data?.ok === false,
+      meta: response.ok ? `source: ${data?.source || "x402.wtf"}` : `error: ${data?.error || `http_${response.status}`}`,
+      content: replyText,
+    });
+  } catch (error) {
+    updateChatMessage(loadingId, {
+      loading: false,
+      error: true,
+      meta: "network error",
+      content: `Chat request failed: ${String(error)}`,
+    });
+  } finally {
+    state.chatLoading = false;
+  }
 }
 
 async function createX402Session() {

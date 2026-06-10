@@ -1,0 +1,253 @@
+- main [ref=e2]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - paragraph [ref=e5]: Clawd Pay
+      - generic [ref=e6]:
+        - generic [ref=e7]: Solana AI commerce, presented like a real merchant product.
+        - generic [ref=e8]: Private Payments
+      - paragraph [ref=e9]: A polished storefront for paid AI products, x402 settlement, and operator-grade chat and fulfillment.
+    - navigation "Primary" [ref=e10]:
+      - link "AI Products" [ref=e11] [cursor=pointer]:
+        - /url: "#solana-ai-products"
+      - link "Checkout" [ref=e12] [cursor=pointer]:
+        - /url: "#checkout-lab"
+      - link "Chat" [ref=e13] [cursor=pointer]:
+        - /url: "#chat-studio"
+      - link "Catalog" [ref=e14] [cursor=pointer]:
+        - /url: "#catalog"
+      - link "Why It Wins" [ref=e15] [cursor=pointer]:
+        - /url: "#why-win"
+  - generic [ref=e16]:
+    - generic [ref=e17]:
+      - paragraph [ref=e18]: Hackathon Demo • Private Agent Commerce
+      - heading "Universal Autonomous Commerce for Solana-Native Agent Work." [level=1] [ref=e19]
+      - paragraph
+      - paragraph [ref=e20]
+      - generic [ref=e21]:
+        - link "Fund With MoonPay" [ref=e22] [cursor=pointer]:
+          - /url: "#"
+        - link "Explore Products" [ref=e23] [cursor=pointer]:
+          - /url: "#catalog"
+        - link "Why This Wins" [ref=e24] [cursor=pointer]:
+          - /url: "#why-win"
+    - generic [ref=e25]:
+      - generic [ref=e27]: $CLAWD
+      - paragraph [ref=e29]: Demo Flow
+  - generic [ref=e30]:
+    - article [ref=e31]:
+      - paragraph [ref=e32]: What It Is
+      - heading "Not another agent chat toy. A real store for paid autonomous work." [level=2] [ref=e33]
+      - paragraph [ref=e34]: Buyers discover products, fund in fiat or crypto, route through specialized agents, and settle into USDC-first flows. The backend posture is private-by-default, while the frontend still feels fast and legible to judges.
+    - article [ref=e35]:
+      - paragraph [ref=e36]: Security Posture
+      - list
+    - article [ref=e37]:
+      - paragraph [ref=e38]: Launch Checklist
+      - list
+  - generic [ref=e39]:
+    - generic [ref=e40]:
+      - generic [ref=e41]:
+        - paragraph [ref=e42]: Solana AI Products
+        - heading "Actual paid products, curated for a premium Solana storefront." [level=2] [ref=e43]
+      - generic [ref=e44]: Real Models, Real Rails
+    - paragraph [ref=e45]: "This section spotlights the store's real AI inventory: OpenRouter inference, Grok orchestration, Grok Imagine, wallet intelligence, and private agent sessions. Each card is wired to a product already in the catalog."
+    - article [ref=e48]:
+      - paragraph [ref=e49]: Why It Feels Premium
+      - heading "Product cards, model labels, and checkout paths all line up like a real storefront." [level=3] [ref=e50]
+      - paragraph [ref=e51]: Buyers can skim the curated Solana AI inventory on the left, then jump straight into checkout or the chat studio. The live provider market stays in the operator lane below.
+      - generic [ref=e52]:
+        - generic [ref=e53]: OpenRouter
+        - generic [ref=e54]: xAI Grok
+        - generic [ref=e55]: Gemini
+        - generic [ref=e56]: CLAWD pricing
+  - generic [ref=e58]:
+    - generic [ref=e59]:
+      - paragraph [ref=e60]: Storefront
+      - heading "Products, offers, and protocol-ready checkout lanes." [level=2] [ref=e61]
+    - generic [ref=e62]: Confidential By Default
+  - generic [ref=e63]:
+    - generic [ref=e64]:
+      - generic [ref=e65]:
+        - paragraph [ref=e66]: Flagship Flow
+        - heading "Create a session, fund it, and reveal fulfillment." [level=2] [ref=e67]
+      - generic [ref=e68]: Live Demo Ready
+    - generic [ref=e69]:
+      - article [ref=e70]:
+        - generic [ref=e71]:
+          - generic [ref=e72]:
+            - generic [ref=e73]: Product
+            - combobox "Product" [ref=e74]
+          - generic [ref=e75]:
+            - generic [ref=e76]: Protocol
+            - combobox "Protocol" [ref=e77]
+          - generic [ref=e78]:
+            - generic [ref=e79]: Asset
+            - combobox "Asset" [ref=e80]
+          - generic [ref=e81]:
+            - generic [ref=e82]: Buyer Name
+            - textbox "Buyer Name" [ref=e83]: Hackathon Judge
+          - generic [ref=e84]:
+            - generic [ref=e85]: Buyer Email
+            - textbox "Buyer Email" [ref=e86]: judge@openclawd.demo
+        - generic [ref=e87]:
+          - button "Create Session" [ref=e88] [cursor=pointer]
+          - button "Mark Funded" [ref=e89] [cursor=pointer]
+      - article [ref=e90]:
+        - paragraph [ref=e91]: Session State
+        - generic [ref=e92]: No session created yet.
+        - paragraph [ref=e93]: Fulfillment
+        - generic [ref=e94]: Fund a session to reveal the artifact.
+  - generic [ref=e95]:
+    - article [ref=e96]:
+      - paragraph [ref=e97]: Onramp
+      - heading "MoonPay is the conversion wedge, not the whole product." [level=2] [ref=e98]
+      - paragraph
+      - generic [ref=e99]:
+        - spinbutton [ref=e100]: "50"
+        - button "Rebuild Buy Link" [ref=e101] [cursor=pointer]
+    - article [ref=e102]:
+      - paragraph [ref=e103]: Payment Rails
+      - heading "Judge-friendly proof that this is bigger than one checkout link." [level=2] [ref=e104]
+  - generic [ref=e107]:
+    - paragraph [ref=e108]: Buyer Journey
+    - heading "How the demo should be told live." [level=2] [ref=e109]
+  - generic [ref=e110]:
+    - generic [ref=e112]:
+      - paragraph [ref=e113]: MoonPay Agent Ops
+      - heading "CLI, MCP, wallet, deposit, and market-data surfaces." [level=2] [ref=e114]
+    - generic [ref=e115]:
+      - article [ref=e116]:
+        - paragraph [ref=e117]: Capability Probe
+      - article [ref=e118]:
+        - paragraph [ref=e119]: Workbench
+  - generic [ref=e122]:
+    - paragraph [ref=e123]: Merchant Command
+    - heading "Fleet lanes, ownership, and fulfillment roles." [level=2] [ref=e124]
+  - generic [ref=e127]:
+    - paragraph [ref=e128]: Why This Wins
+    - heading "Differentiation that maps to real Solana startup patterns." [level=2] [ref=e129]
+  - generic [ref=e131]:
+    - generic [ref=e132]:
+      - paragraph [ref=e133]: Judge Mode
+      - heading "90-second talk track for the live demo." [level=2] [ref=e134]
+    - button "Load Judge Sequence" [ref=e135] [cursor=pointer]
+  - generic [ref=e136]:
+    - generic [ref=e137]:
+      - generic [ref=e138]:
+        - paragraph [ref=e139]: Merchant Chat Studio
+        - heading "A real conversation surface for x402 operations and operator prompts." [level=2] [ref=e140]
+      - generic [ref=e141]: checking…
+    - paragraph [ref=e142]:
+      - text: The OpenClawd merchant is registered on
+      - code [ref=e143]: x402.wtf/agents/registry
+      - text: and accepts real x402 challenges through
+      - code [ref=e144]: https://x402.wtf/payments
+      - text: . The chat UI below keeps the interaction readable, fast, and operator-friendly.
+    - generic [ref=e145]:
+      - article [ref=e146]:
+        - generic [ref=e147]:
+          - generic [ref=e148]:
+            - paragraph [ref=e149]: x402 Agent Chat
+            - heading "Merchant-aware chat with live agent routing." [level=3] [ref=e150]
+          - generic [ref=e151]: Live
+        - generic [ref=e153]:
+          - generic [ref=e154]:
+            - generic [ref=e155]: Agent
+            - combobox "Agent" [ref=e156]:
+              - option "clawd" [selected]
+              - option "eliza"
+              - option "dexter"
+              - option "hermes"
+              - option "ralph"
+          - generic [ref=e157]:
+            - generic [ref=e158]: Message
+            - textbox "Message" [ref=e159]: Register the merchant and quote OODA.
+          - generic [ref=e160]:
+            - button "Reset Chat" [ref=e161] [cursor=pointer]
+            - button "Send Message" [ref=e162] [cursor=pointer]
+      - complementary [ref=e163]:
+        - article [ref=e164]:
+          - paragraph [ref=e165]: x402.wtf Agent Registry
+          - generic [ref=e166]: Registry status will appear here.
+          - button "Register Merchant" [ref=e168] [cursor=pointer]
+        - article [ref=e169]:
+          - paragraph [ref=e170]: x402 Connection
+          - generic [ref=e171]: Loading x402.wtf connection…
+  - generic [ref=e172]:
+    - generic [ref=e173]:
+      - generic [ref=e174]:
+        - paragraph [ref=e175]: x402.wtf Live Checkout
+        - heading "Create a real paid x402 challenge for any product." [level=2] [ref=e176]
+      - generic [ref=e177]: Real Store
+    - generic [ref=e178]:
+      - article [ref=e179]:
+        - generic [ref=e180]:
+          - generic [ref=e181]:
+            - generic [ref=e182]: Product
+            - combobox "Product" [ref=e183]
+          - generic [ref=e184]:
+            - generic [ref=e185]: Asset
+            - combobox "Asset" [ref=e186]
+          - generic [ref=e187]:
+            - generic [ref=e188]: Buyer Wallet (optional)
+            - textbox "Buyer Wallet (optional)" [ref=e189]: GyZGtA7hEThVHZpj52XC9jX15a8ABtDHTwELjFRWEts4
+          - generic [ref=e190]:
+            - generic [ref=e191]: Buyer Name
+            - textbox "Buyer Name" [ref=e192]: Hackathon Judge
+          - generic [ref=e193]:
+            - generic [ref=e194]: Buyer Email
+            - textbox "Buyer Email" [ref=e195]: judge@x402.wtf
+        - generic [ref=e196]:
+          - button "Create x402 Challenge" [ref=e197] [cursor=pointer]
+          - button "Verify payment-signature" [ref=e198] [cursor=pointer]
+        - generic [ref=e199]:
+          - generic [ref=e200]: payment-signature
+          - textbox "payment-signature" [ref=e201]:
+            - /placeholder: Paste the x402 payment signature from the buyer wallet
+      - article [ref=e202]:
+        - paragraph [ref=e203]: x402 Session
+        - generic [ref=e204]: No x402 session created yet.
+        - paragraph [ref=e205]: Fulfillment Receipt
+        - generic [ref=e206]: Verify the payment-signature to unlock the receipt.
+  - generic [ref=e207]:
+    - generic [ref=e209]:
+      - paragraph [ref=e210]: Live Operators
+      - heading "Inference, Grok swarm, Gemini, and Helius-backed operator actions." [level=2] [ref=e211]
+    - generic [ref=e212]:
+      - article [ref=e213]:
+        - paragraph [ref=e214]: Inference Provider Market
+        - generic [ref=e215]: Provider status will appear here.
+      - article [ref=e216]:
+        - paragraph [ref=e217]: Gemini Merchant Agent
+        - generic [ref=e218]:
+          - generic [ref=e219]: Prompt
+          - textbox "Prompt" [ref=e220]: Write a 5-line merchant pitch for OpenClawd that explains why a buyer should fund a Private Agent Session in USDC on Solana.
+        - button "Run Gemini Agent" [ref=e222] [cursor=pointer]
+        - generic [ref=e223]: Gemini output will appear here.
+      - article [ref=e224]:
+        - paragraph [ref=e225]: Helius Wallet Brief
+        - generic [ref=e226]:
+          - generic [ref=e227]: Wallet
+          - textbox "Wallet" [ref=e228]: GyZGtA7hEThVHZpj52XC9jX15a8ABtDHTwELjFRWEts4
+        - button "Run Wallet Brief" [ref=e230] [cursor=pointer]
+        - generic [ref=e231]: Wallet brief will appear here.
+  - generic [ref=e232]:
+    - generic [ref=e233]:
+      - generic [ref=e234]:
+        - paragraph [ref=e235]: Frontier Judge Map
+        - heading "We studied the Colosseum company field and turned their patterns into product signals." [level=2] [ref=e236]
+      - generic [ref=e237]: 54 Companies Parsed
+    - paragraph [ref=e238]: This is not a generic store. It is positioned as the convergence layer between privacy-first commerce, stablecoin checkout, agent infrastructure, and Solana-native monetization.
+  - generic [ref=e239]:
+    - article [ref=e240]:
+      - paragraph [ref=e241]: Google Layer
+      - heading "Hackathon vicinity intelligence." [level=2] [ref=e242]
+      - paragraph [ref=e243]: Use the Google client key to light up place search in the browser. Keep it referrer-restricted.
+      - generic [ref=e244]:
+        - textbox [ref=e245]: crypto coworking near hackathon
+        - button "Search" [ref=e246] [cursor=pointer]
+      - generic [ref=e247]: Google Places search is idle.
+    - article [ref=e248]:
+      - paragraph [ref=e249]: Closing Line
+      - heading "OpenClawd turns autonomous agents into a monetizable merchant network." [level=2] [ref=e250]
+      - paragraph [ref=e251]: "The pitch is simple: if agents are going to do real work, they need discovery, checkout, fulfillment, and settlement. This storefront shows the whole stack in one place."

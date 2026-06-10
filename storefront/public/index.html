@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>OpenClawd Sovereign Store</title>
+    <title>Clawd Pay | Solana AI Commerce</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
@@ -13,6 +13,26 @@
     <div class="ambient ambient-a"></div>
     <div class="ambient ambient-b"></div>
     <main class="shell">
+      <header class="topbar panel">
+        <div class="topbar-brand">
+          <p class="eyebrow">Clawd Pay</p>
+          <div class="topbar-title-row">
+            <div class="topbar-title">Solana AI commerce, presented like a real merchant product.</div>
+            <span class="status-pill status-pill-soft">Private Payments</span>
+          </div>
+          <p class="topbar-subtitle">
+            A polished storefront for paid AI products, x402 settlement, and operator-grade chat and fulfillment.
+          </p>
+        </div>
+        <nav class="topbar-nav" aria-label="Primary">
+          <a href="#solana-ai-products">AI Products</a>
+          <a href="#checkout-lab">Checkout</a>
+          <a href="#chat-studio">Chat</a>
+          <a href="#catalog">Catalog</a>
+          <a href="#why-win">Why It Wins</a>
+        </nav>
+      </header>
+
       <section class="hero panel">
         <div class="hero-copy">
           <p class="eyebrow">Hackathon Demo • Private Agent Commerce</p>
@@ -57,6 +77,37 @@
           <p class="section-label">Launch Checklist</p>
           <ul class="security-list" id="launch-checklist"></ul>
         </article>
+      </section>
+
+      <section class="panel ai-showcase" id="solana-ai-products">
+        <div class="section-head">
+          <div>
+            <p class="section-label">Solana AI Products</p>
+            <h2>Actual paid products, curated for a premium Solana storefront.</h2>
+          </div>
+          <div class="status-pill">Real Models, Real Rails</div>
+        </div>
+        <p class="frontier-copy">
+          This section spotlights the store's real AI inventory: OpenRouter inference, Grok orchestration, Grok Imagine,
+          wallet intelligence, and private agent sessions. Each card is wired to a product already in the catalog.
+        </p>
+        <div class="ai-showcase-grid">
+          <div class="products products-compact" id="ai-products"></div>
+          <article class="panel ai-provider-panel">
+            <p class="section-label">Why It Feels Premium</p>
+            <h3>Product cards, model labels, and checkout paths all line up like a real storefront.</h3>
+            <p class="frontier-copy">
+              Buyers can skim the curated Solana AI inventory on the left, then jump straight into checkout or the chat studio.
+              The live provider market stays in the operator lane below.
+            </p>
+            <div class="meta-line">
+              <span class="chip">OpenRouter</span>
+              <span class="chip">xAI Grok</span>
+              <span class="chip">Gemini</span>
+              <span class="chip chip-strong">CLAWD pricing</span>
+            </div>
+          </article>
+        </div>
       </section>
 
       <section class="panel featured" id="catalog">
@@ -197,49 +248,63 @@
         <div class="journey" id="judge-mode"></div>
       </section>
 
-      <section class="panel x402-store">
+      <section class="panel chat-studio" id="chat-studio">
         <div class="section-head">
           <div>
-            <p class="section-label">x402.wtf Real Store</p>
-            <h2>Registered paid merchant on <code>https://x402.wtf/payments</code>.</h2>
+            <p class="section-label">Merchant Chat Studio</p>
+            <h2>A real conversation surface for x402 operations and operator prompts.</h2>
           </div>
           <div class="status-pill" id="x402-store-status">checking…</div>
         </div>
         <p class="frontier-copy">
           The OpenClawd merchant is registered on <code>x402.wtf/agents/registry</code> and accepts real x402 challenges through
-          <code>https://x402.wtf/payments</code>. Each paid product returns an HTTP&nbsp;402 challenge that the buyer signs with a Solana wallet.
-          Once the operator wallet replays the request with <code>payment-signature</code>, the receipt is verified and the fulfillment lane unlocks.
+          <code>https://x402.wtf/payments</code>. The chat UI below keeps the interaction readable, fast, and operator-friendly.
         </p>
-        <div class="terminal" id="x402-store-info">Loading x402.wtf connection…</div>
-        <div class="grid x402-grid">
-          <article class="panel x402-subpanel">
-            <p class="section-label">x402.wtf Agent Registry</p>
-            <pre class="artifact-view" id="x402-registry-output">Registry status will appear here.</pre>
-            <div class="hero-actions">
-              <button class="button button-primary" id="x402-registry-register">Register Merchant</button>
+        <div class="chat-grid">
+          <article class="panel chat-panel">
+            <div class="chat-panel-head">
+              <div>
+                <p class="section-label">x402 Agent Chat</p>
+                <h3>Merchant-aware chat with live agent routing.</h3>
+              </div>
+              <span class="status-pill status-pill-soft">Live</span>
+            </div>
+            <div class="chat-thread" id="x402-chat-thread"></div>
+            <div class="chat-quick-prompts" id="x402-chat-prompts"></div>
+            <div class="chat-composer">
+              <label class="field">
+                <span>Agent</span>
+                <select id="x402-chat-agent">
+                  <option value="clawd">clawd</option>
+                  <option value="eliza">eliza</option>
+                  <option value="dexter">dexter</option>
+                  <option value="hermes">hermes</option>
+                  <option value="ralph">ralph</option>
+                </select>
+              </label>
+              <label class="field chat-message-field">
+                <span>Message</span>
+                <textarea id="x402-chat-message">Register the merchant and quote OODA.</textarea>
+              </label>
+              <div class="hero-actions">
+                <button class="button button-secondary" id="x402-chat-reset" type="button">Reset Chat</button>
+                <button class="button button-primary" id="x402-chat-run" type="button">Send Message</button>
+              </div>
             </div>
           </article>
-          <article class="panel x402-subpanel">
-            <p class="section-label">x402 Agent Chat</p>
-            <label class="field">
-              <span>Agent</span>
-              <select id="x402-chat-agent">
-                <option value="clawd">clawd</option>
-                <option value="eliza">eliza</option>
-                <option value="dexter">dexter</option>
-                <option value="hermes">hermes</option>
-                <option value="ralph">ralph</option>
-              </select>
-            </label>
-            <label class="field">
-              <span>Message</span>
-              <textarea id="x402-chat-message">Register the OpenClawd store on x402.wtf and quote me for an OODA signal pack.</textarea>
-            </label>
-            <div class="hero-actions">
-              <button class="button button-secondary" id="x402-chat-run">Send x402 Chat</button>
-            </div>
-            <pre class="artifact-view" id="x402-chat-output">x402 chat reply will appear here.</pre>
-          </article>
+          <aside class="chat-side">
+            <article class="panel x402-subpanel">
+              <p class="section-label">x402.wtf Agent Registry</p>
+              <pre class="artifact-view" id="x402-registry-output">Registry status will appear here.</pre>
+              <div class="hero-actions">
+                <button class="button button-primary" id="x402-registry-register" type="button">Register Merchant</button>
+              </div>
+            </article>
+            <article class="panel x402-subpanel">
+              <p class="section-label">x402 Connection</p>
+              <div class="terminal" id="x402-store-info">Loading x402.wtf connection…</div>
+            </article>
+          </aside>
         </div>
       </section>
 
@@ -296,14 +361,14 @@
       <section class="panel live-agents">
         <div class="section-head">
           <div>
-            <p class="section-label">Live Agents</p>
+            <p class="section-label">Live Operators</p>
             <h2>Inference, Grok swarm, Gemini, and Helius-backed operator actions.</h2>
           </div>
         </div>
         <div class="checkout-grid">
           <article class="panel checkout-form-panel">
             <p class="section-label">Inference Provider Market</p>
-            <pre class="artifact-view" id="ai-provider-output">Provider status will appear here.</pre>
+            <div id="ai-provider-output" class="provider-grid">Provider status will appear here.</div>
           </article>
           <article class="panel checkout-form-panel">
             <p class="section-label">Gemini Merchant Agent</p>
